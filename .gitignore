@@ -1,0 +1,5 @@
+venv/*
+venv
+.env
+.cache
+song_data.json
