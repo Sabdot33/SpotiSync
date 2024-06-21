@@ -6,3 +6,4 @@ __pycache__
 song_data.json
 downloads/*
 *.log
+.pytest_cache
