@@ -16,51 +16,7 @@ This project is made Possible by Yank, the downloading engine of my code, check 
 
 ## Installation
 
-### Method 1 - Docker compose
-
-- create a directory and cd into it
-  `mkdir spotisync && cd spotisync`
-- create a `.env` file
-
-```env
-# Enter your Spotify API credentials here
-SPOTIFY_CLIENT_ID=yourID
-SPOTIFY_CLIENT_SECRET=yourSecret
-
-#Time between two syncronizations in hours
-SCHEDULE_TIME=8 # Hours
-
-# This should not be changed unless you know what you're doing
-SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
-```
-
-- get a Spotify API key
-  - Log in [here](https://developer.spotify.com/dashboard/)
-  - Create an app and set Redirect URIs to `http://localhost:8888/callback`
-  - navigate to its settings
-  - Copy the `client_id` and `client_secret` into your .env file
-- create a `compose.yaml` file:
-
-```yaml
-version: "3.8"
-
-services:
-  spotisync:
-    build: .
-    image: ghcr.io/zsabiudj/spotisync:latest
-    ports:
-      - "5000:5000"
-    volumes:
-      - .:/app
-      - ./downloads:/app/downloads # path to your downloads folder
-    restart: always
-    env_file:
-      - .env
-```
-
-- run the container using `docker compose up -d`
-
-### Method 2 - Python venv
+### Method 1 - Python venv
 
 - get a Spotify API key
   - Log in [here](https://developer.spotify.com/dashboard/)
