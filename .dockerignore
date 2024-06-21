@@ -1,0 +1,8 @@
+.vscode
+venv
+.cache
+__pycache__
+.env
+song_data.json
+downloads/*
+*.log
