@@ -8,13 +8,11 @@ This project is made Possible by Yank, the downloading engine of my code, check 
 
 ## Features
 
-<ul style="list-style-type: none;">
-  <li>[✓] Extract your liked songs into a json file</li>
-  <li>[✓] Download your Spotify library in mp3 format</li>
-  <li>[✓] Argument parser</li>
-  <li>[✕] Sync in the background (Soon™)</li>
-  <li>[✕] Run in docker (Soon™)</li>
-</ul>
+- [✓] Extract your liked songs into a json file</li>
+- [✓] Download your Spotify library in mp3 format</li>
+- [✓] Argument parser</li>
+- [✕] Sync in the background (Soon™)</li>
+- [✕] Run in docker (Soon™)</li>
 
 ## Installation
 
@@ -36,6 +34,6 @@ This project is made Possible by Yank, the downloading engine of my code, check 
   (venv) C:\Users\user\Desktop\SpotiSync
   ```
 
-- run `python main.py`
-- authorized the app in your Browser
+- run `python3 main.py`
+- authorize the app in your Browser
 - You're good to go!
