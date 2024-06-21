@@ -1,0 +1,14 @@
+version: "3.8"
+
+services:
+  spotisync:
+    build: .
+    image: ghcr.io/zsabiudj/spotisync:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - .:/app
+      - ./downloads:/app/downloads # path to your downloads folder 
+    restart: always
+    env_file:
+      - .env

@@ -10,6 +10,7 @@ SCHEDULE_TIME = int(os.getenv('SCHEDULE_TIME'))
 schedule.every(SCHEDULE_TIME).hours.do(fetch_user_lib_and_save_all)
 
 # Run at startup
+print("If you see this you good my man")
 fetch_user_lib_and_save_all()
 
 while True:

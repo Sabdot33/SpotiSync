@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 from download import download_and_save_mp3
 import os
 import json
-import threading
 
 def fetch_user_lib_and_save_all():
     
@@ -15,7 +14,7 @@ def fetch_user_lib_and_save_all():
     CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
     CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
     REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
-    DW_PATH = os.getenv('DOWNLOAD_PATH')
+    DW_PATH = "./downloads"
 
     # Set up Spotify API authentication
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
@@ -67,6 +66,7 @@ def fetch_user_lib_and_save_all():
             print(f"\t- {item}")
     else:
         print("All songs downloaded successfully! Enjoy :3")
+        return True
         
 if __name__ == "__main__":
     fetch_user_lib_and_save_all()
