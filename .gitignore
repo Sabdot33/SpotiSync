@@ -1,5 +1,7 @@
-venv/*
 venv
-.env
 .cache
+__pycache__
+.env
 song_data.json
+dw/*
+*.log

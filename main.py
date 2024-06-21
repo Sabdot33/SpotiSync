@@ -1,8 +1,10 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
+from dw import download_and_save_mp3
 import os
 import json
+import threading
 
 # Load environment variables from .env file
 load_dotenv()
@@ -11,6 +13,7 @@ load_dotenv()
 CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
 CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
 REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
+DW_PATH = os.getenv('DOWNLOAD_PATH')
 
 # Set up Spotify API authentication
 sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
@@ -42,3 +45,23 @@ with open('song_data.json', 'w') as f:
     json.dump(song_data, f, indent=4)
 
 print("Song data extracted and saved to song_data.json")
+
+with open('song_data.json', 'r') as f:
+    data = json.load(f)
+
+failed_items = []  # Use a list to store failed items
+
+for item in data:
+    try:
+        # Call the download function (assuming it raises exceptions for errors)
+        download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH)
+    except Exception as e:  # Catch any exception from the download function
+        print(f"{item['name']}.mp3 (Error: {e})")
+        failed_items.append(f"{item['name']}.mp3 (Error: {e})")  # Log failed item with error details
+
+if len(failed_items) > 0:
+    print(f"Failed to download {len(failed_items)} items:")
+    for item in failed_items:
+        print(f"\t- {item}")
+else:
+    print("All songs downloaded successfully! Enjoy :3")
