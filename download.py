@@ -52,7 +52,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
             for chunk in response.iter_content(1024):
                 if chunk:  # filter out keep-alive new chunks
                     f.write(chunk)
-        print(f"Audio downloaded and saved as: {full_path}")
+        print(f"Audio downloaded and saved as: {filename}")
     else:
         if skip==False:
             raise ValueError(f"File already exists: {full_path}")

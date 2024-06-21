@@ -8,11 +8,11 @@ This project is made Possible by Yank, the downloading engine of my code, check 
 
 ## Features
 
-- [✓] Extract your liked songs into a json file</li>
-- [✓] Download your Spotify library in mp3 format</li>
-- [✓] Argument parser</li>
-- [✕] Sync in the background (Soon™)</li>
-- [✕] Run in docker (Soon™)</li>
+- [✓] Extract your liked songs into a json file
+- [✓] Download your Spotify library in mp3 format
+- [✓] Argument parser
+- [✓] Sync in the background
+- [✕] Run in docker (Soon™)
 
 ## Installation
 
