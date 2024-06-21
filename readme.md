@@ -33,6 +33,7 @@ SCHEDULE_TIME=8 # Hours
 # This should not be changed unless you know what you're doing
 SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
 ```
+
 - get a Spotify API key
   - Log in [here](https://developer.spotify.com/dashboard/)
   - Create an app and set Redirect URIs to `http://localhost:8888/callback`
@@ -51,11 +52,12 @@ services:
       - "5000:5000"
     volumes:
       - .:/app
-      - ./downloads:/app/downloads # path to your downloads folder 
+      - ./downloads:/app/downloads # path to your downloads folder
     restart: always
     env_file:
       - .env
 ```
+
 - run the container using `docker compose up -d`
 
 ### Method 2 - Python venv
