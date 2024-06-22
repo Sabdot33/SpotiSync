@@ -2,6 +2,7 @@
 
 cd ..
 python3 -m venv venv
+sudo chmod +rwx ./venv/bin/activate
 ./venv/bin/activate
 pip install -r requirements.txt
 python3 app.py
