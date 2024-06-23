@@ -69,4 +69,3 @@ if __name__ == "__main__":
     download_path = input("Enter the download path (optional, defaults to current directory): ") or "."
 
     download_and_save_mp3(id, filename="audio.mp3", path=download_path)
-

@@ -5,8 +5,9 @@ from download import download_and_save_mp3
 import os
 import json
 
-def fetch_user_lib_and_save_all():
+def fetch_user_lib_and_save_all(debug=False):
     
+
     # Load environment variables from .env file
     load_dotenv()
 
