@@ -34,7 +34,7 @@ def create_tray_icon():
     icon.icon = Image.open("sync_icon.png")
     icon.title = "SpotiSync"
     icon.menu = pystray.Menu(
-        item('Open GUI', root.mainloop), # TODO: Test this cause i cant yet
+        item('Open GUI', root.deiconify), # FIXME on linux
         item('Force Synchronization', fetch_user_lib_and_save_all),
         item('Quit', on_quit_entire_program)
     )
