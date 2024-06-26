@@ -12,6 +12,10 @@ SpotiSync was made to break the chains of streaming and puts you in control.
 
 This project is made Possible by Yank, the downloading engine of my code, check it out [here](https://github.com/G3VV/Yank)
 
+### Disclaimer ⚠️
+
+This project is not affiliated with Yank!
+
 ## Features uses and known issues
 
 ### Use cases
