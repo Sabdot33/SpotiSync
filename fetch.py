@@ -77,7 +77,7 @@ def fetch_user_lib_and_save_all(debug=False):
             # ^First 4 lines of errors.log^
             for item in failed_items:
                 try:
-                    if debug: print(f"\t- {item}")
+                    if debug: print(f"- {item}")
                     log.write(f"- {item}\n")
                 except Exception as e:
                     log.write(f"Cloud not log error; python raised an exception: {e}\nSee https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")

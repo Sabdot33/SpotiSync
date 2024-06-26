@@ -36,16 +36,10 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         response.raise_for_status()  # Raise an exception for non-200 status codes
     except requests.exceptions.RequestException as e:
         if skip==True:
-            try:
-                if debug: print(f"Error downloading audio: {e}")
-            except Exception as e:
-                print(f"Cloud not log error; python raised an exception: {e}\nSee https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
-                hasfailed=True            
+            if debug: print(f"Error downloading audio: {e}")
+            hasfailed=True     
         else:
-            try:
-                raise ValueError(f"Error downloading audio: {e}")
-            except Exception:
-                raise ValueError(f"Error downloading audio; cannot log error")
+            raise ValueError(f"Error downloading audio: {e}")
     # Check content type before saving
     if response.headers.get('content-type', '').lower() != 'audio/mpeg':
         if skip==True:
