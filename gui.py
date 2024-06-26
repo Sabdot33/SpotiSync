@@ -42,23 +42,24 @@ def create_tray_icon():
     if debug: print("DEBUG: Created tray icon")
 
 
-def force_trigger_sync(self):
+def force_trigger_sync():
+    global root, sync_button, status_label
     if debug: print("DEBUG: Triggering synchronization")
     force_sync_thread = Thread(target=fetch_user_lib_and_save_all)
     force_sync_thread.daemon = True
     force_sync_thread.start()
     
     while force_sync_thread.is_alive():
-        self.status_label.config(text="Synchronization in progress...")
-        self.sync_button.config(state=tk.DISABLED)
-        self.update()
+        status_label.config(text="Synchronization in progress...")
+        sync_button.config(state=tk.DISABLED)
+        root.update()
     else:
-        self.sync_button.config(state=tk.NORMAL)
-        self.status_label.config(text="Synchronization complete!")
-        self.update()
+        sync_button.config(state=tk.NORMAL)
+        status_label.config(text="Synchronization complete!")
+        root.update()
         sleep(3)
-        self.status_label.config(text="")
-        self.update()
+        status_label.config(text="")
+        root.update()
         
 def show_logs():
     if debug: print("DEBUG: Showing logs")
@@ -108,6 +109,9 @@ notebook.add(frame2, text="Logs")
 notebook.add(frame3, text="Settings")
 
 # Frame 1 - Main: Synchronization
+status_label = tk.Label(frame1, text="")
+status_label.pack()
+
 sync_button = tk.Button(frame1, text="Force Synchronization", command=force_trigger_sync)
 sync_button.pack(anchor="n")
 

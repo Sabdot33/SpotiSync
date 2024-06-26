@@ -8,7 +8,8 @@ import json
 
 def fetch_user_lib_and_save_all(debug=False):
     
-
+    dbg = debug
+    
     # Load environment variables from .env file
     load_dotenv()
 
@@ -56,7 +57,7 @@ def fetch_user_lib_and_save_all(debug=False):
 
     for item in data:
         try:
-            download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH)
+            download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH, debug=dbg)
         except Exception as e:
             # dont print if os is windows
             if os.name == 'nt':
@@ -71,17 +72,16 @@ def fetch_user_lib_and_save_all(debug=False):
         os.remove('errors.log')
     with open('errors.log', 'w') as log:
         if len(failed_items) > 0:
-            print(f"Failed to download {len(failed_items)} items:")
+            print(f"Failed to download {len(failed_items)} items")
             log.write(f"Failed to download {len(failed_items)} items:\n\nSong Name:  Error\n------------------------------------------------------------------------------------------------------------------------------------------\n")
             # ^First 4 lines of errors.log^
             for item in failed_items:
-                if os.name == 'nt':
-                    # no clue why this wont work sometimes.... TODO: FIXME
-                    log.write(f"- {item}\n".encode('utf-8').decode('unicode_escape'))
-                else:
-                    print(f"\t- {item}")
+                try:
+                    if debug: print(f"\t- {item}")
                     log.write(f"- {item}\n")
-            print("Logged errors to errors.log")
+                except Exception as e:
+                    log.write(f"Cloud not log error; python raised an exception: {e}\nSee https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
+            if debug: print("DEBUG: Logged errors to errors.log")
         else:
             print("All songs downloaded successfully! Enjoy :3")
             return True
