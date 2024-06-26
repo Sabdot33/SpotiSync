@@ -1,5 +1,6 @@
 .vscode
 venv
+.venv
 .cache
 __pycache__
 .env
@@ -8,3 +9,7 @@ downloads/*
 *.log
 .pytest_cache
 *.soon
+bin
+.buildozer
+build
+buildozer.spec

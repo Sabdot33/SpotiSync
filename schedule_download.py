@@ -15,7 +15,7 @@ def run_scheduler(debug=False):
     dotenv.load_dotenv()
     SCHEDULE_TIME = int(os.getenv('SCHEDULE_TIME'))
 
-    schedule.every(SCHEDULE_TIME).hours.do(fetch_user_lib_and_save_all(debug=dbg))
+    schedule.every(SCHEDULE_TIME).hours.do(fetch_user_lib_and_save_all, debug=dbg)
 
     # Run at startup
     print("If you see this you good my man")

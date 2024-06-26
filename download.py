@@ -1,5 +1,6 @@
 import requests
 import os
+import sys
 
 def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
     """Downloads the audio from the given ID and saves it as an MP3 file to the specified path.
@@ -14,7 +15,6 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
     url = f"https://yank.g3v.co.uk/track/{id}"
     hasfailed=False
 
-    # Create the path if it doesn't exist
     if not os.path.exists(path):
         os.makedirs(path)
     
@@ -22,7 +22,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
     full_path = os.path.join(path, filename)
     if os.path.exists(full_path):
         if skip==False:
-            raise ValueError(f"File already exists: {full_path}")
+            raise ValueError("File already exists: " + full_path)
         else:
             print(f"File already exists: {full_path}")
             hasfailed=True
@@ -32,12 +32,17 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
         response.raise_for_status()  # Raise an exception for non-200 status codes
     except requests.exceptions.RequestException as e:
         if skip==True:
-            print(f"Error downloading audio: {e}")
+            if os.name == 'nt':
+                print(f"Error downloading audio")
+            else:
+                print(f"Error downloading audio: {e}")
             hasfailed=True
             
-        else:    
-            raise ValueError(f"Error downloading audio: {e}")
-
+        else:
+            if os.name == 'nt':
+                pass
+            else:
+                raise ValueError(f"Error downloading audio: {e}")
     # Check content type before saving
     if response.headers.get('content-type', '').lower() != 'audio/mpeg':
         if skip==True:
@@ -46,19 +51,13 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False):
         else:
             raise ValueError("Downloaded content is not an MP3 file.")
 
-    
-    if not os.path.exists(full_path):
-        with open(full_path, "wb") as f:
-            for chunk in response.iter_content(1024):
-                if chunk:  # filter out keep-alive new chunks
-                    f.write(chunk)
-        print(f"Audio downloaded and saved as: {filename}")
-    else:
-        if skip==False:
-            raise ValueError(f"File already exists: {full_path}")
-        else:
-            print(f"File already exists: {full_path}")
-            hasfailed=True
+    # Save the file
+    with open(full_path, "wb") as f:
+        for chunk in response.iter_content(1024):
+            if chunk:  # filter out keep-alive new chunks
+                f.write(chunk)
+    print(f"Audio downloaded and saved as: {filename}")
+
         
     return hasfailed
 

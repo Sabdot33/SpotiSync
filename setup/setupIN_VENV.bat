@@ -1,8 +1,7 @@
-#!/bin/bash
-
 cd ..
-sudo chmod +rwx *.py
+python -m venv venv
+venv/Scripts/activate
 pip install -r requirements.txt
-python3 gui.py
+python gui.py
 echo "Setup script finished! Press Enter to continue..."
-read -p ""
+pause
