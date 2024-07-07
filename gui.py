@@ -32,6 +32,10 @@ elif debugenv == "False" or "FALSE" or "false":
 else:
     print("WARN: Invalid value for DEBUG, defaulting to False") 
     debug = False
+
+if not download_path.endswith("/"):
+    download_path += "/"
+    if debug: print(f"DEBUG: Added trailing slash to download_path: {download_path}")
     
 startupenv = os.getenv('STARTUP_WITH_GUI')
 if startupenv == "True" or "TRUE" or "true":
