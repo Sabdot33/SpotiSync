@@ -1,41 +1,48 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
-from download import download_and_save_mp3
+from .download import download_and_save_mp3
 import os
-import sys
 import json
+import time
 
 def fetch_user_lib_and_save_all(debug=False):
+    """
+    Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
+    Then, it downloads the audio files for each song and saves them to a specified path.
+    
+    Args:
+        debug (bool, optional): If True, prints debug information. Defaults to False.
+    
+    Returns:
+        bool: True if all songs were downloaded successfully, False otherwise.
+    """
     
     dbg = debug
     
-    # Load environment variables from .env file
     load_dotenv()
 
     # Get environment variables
     CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
     CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
     REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
-    DW_PATH = os.getenv('DOWNLOAD_PATH')
+    DW_PATH = os.getenv('DOWNLOAD_PATH_MUSIC') + "Favorites/"
 
-    # Set up Spotify API authentication
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
                                                    client_secret=CLIENT_SECRET,
                                                    redirect_uri=REDIRECT_URI,
                                                    scope="user-library-read"))
 
-    # Fetch user's saved tracks
     results = sp.current_user_saved_tracks(limit=50)
     tracks = results['items']
 
-    # Fetch all pages of results
     while results['next']:
         results = sp.next(results)
         tracks.extend(results['items'])
 
-    # Extract song names and URLs
+    # Extract song names and URLs (oldest first)
     song_data = []
+    tracks = tracks[::-1]
     for item in tracks:
         track = item['track']
         song_data.append({
@@ -44,11 +51,10 @@ def fetch_user_lib_and_save_all(debug=False):
             'id': track['id']
         })
 
-    # Save song data to a JSON file
     with open('song_data.json', 'w') as f:
         json.dump(song_data, f, indent=4)
 
-    print("Song data extracted and saved to song_data.json")
+    if debug: print("DEBUG: Song data extracted and saved to song_data.json")
 
     with open('song_data.json', 'r') as f:
         data = json.load(f)
@@ -59,21 +65,23 @@ def fetch_user_lib_and_save_all(debug=False):
         try:
             download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH, debug=dbg)
         except Exception as e:
-            # dont print if os is windows
             if os.name == 'nt':
                 pass
             else:
-                print(f"{item['name']}.mp3 (Error: {e})")
-            # log every error except "file already exists"
+                if debug: print(f"DEBUG: {item['name']}.mp3 (Error: {e})")
             if not str(e).startswith("File already exists"):
                 failed_items.append(f"{item['name']}.mp3:  {e})")
+                
+    failed_items = failed_items[::-1] # Reverse order for most recent track to be at the top
 
-    if os.path.exists('errors.log'):
+    try:
         os.remove('errors.log')
+    except Exception as e:
+        if debug: print(f"DEBUG: {e}")
     with open('errors.log', 'w') as log:
         if len(failed_items) > 0:
             print(f"Failed to download {len(failed_items)} items")
-            log.write(f"Failed to download {len(failed_items)} items:\n\nSong Name:  Error\n------------------------------------------------------------------------------------------------------------------------------------------\n")
+            log.write(f"Failed to download {len(failed_items)} items:\n\nSong Name:  Error                                                                                      This log is from " + time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()) + "\n-------------------------------------------------------------------------------------------------------------------------------------------\n")
             # ^First 4 lines of errors.log^
             for item in failed_items:
                 try:

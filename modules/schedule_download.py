@@ -1,8 +1,8 @@
 import schedule
-import time
 import os
 import dotenv
-from fetch import fetch_user_lib_and_save_all
+from time import sleep
+from .fetch_favorite_songs import fetch_user_lib_and_save_all
 
 def run_scheduler(debug=False):
   
@@ -15,16 +15,18 @@ def run_scheduler(debug=False):
     dotenv.load_dotenv()
     SCHEDULE_TIME = int(os.getenv('SCHEDULE_TIME'))
 
-    schedule.every(SCHEDULE_TIME).hours.do(fetch_user_lib_and_save_all, debug=dbg)
+    schedule.every(SCHEDULE_TIME).minutes.do(fetch_user_lib_and_save_all, debug=dbg)
 
     # Run at startup
-    print("If you see this you good my man")
+    
+    # i'm adding these two lines for my sanity when testing
+    sleep(60)
     fetch_user_lib_and_save_all(debug=dbg)
 
     while True:
-      # Check for pending tasks every 10 minutes
+      # Check for pending tasks every minute
       schedule.run_pending()
-      time.sleep(60)
+      sleep(60)
 
 if __name__ == "__main__":
   run_scheduler()

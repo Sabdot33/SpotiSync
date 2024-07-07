@@ -22,20 +22,23 @@ This project is not affiliated with Yank!
 
 SpotiSync liberates your Spotify library, enabling offline access, permanent backups, and personalized music management, so you can ditch the limitations and enjoy your tunes anytime, anywhere, exactly how you like and if you discover a new tune to add, just like it on Spotify and it will automatically be synchronized as long as this app is running.
 
+I started this project because in my opinion Spotify has made some questionable business choices and as a response to that I wanted to break the chains in an interesting and as user-friendly as possible way.
+
 ### Features
 
 - [✓] Extract your liked songs into a json file
 - [✓] Download your Spotify library in mp3 format
-- [✓] Argument parser
+- [✓] Playlist downloader (Soon to be synchronizer too)
+- [✓] Download all albums from your favorite Artist
 - [✓] Sync in the background
-- [✓] Set up itself in a venv
+- [✓] Runs in a venv
 
 ### Bugs
 
-- [FIXED] Icon appearance
+- [FIXED] Debug Flags are broken for some functions
 - [ ] on windows, logs are limited and the terminal will NOT print the logs, this is because of encoding and decoding issues with for example russian characters
-- [ ] Tray icon does not work on Linux (Tested on Cinnamon)
-- [ ] Debug Flags are broken for some functions
+- [ ] Tray icon does not work properly on Linux (Tested on Cinnamon)
+      Note that this is likely a bug in the pystray library
 
 ## Installation
 
@@ -44,55 +47,28 @@ SpotiSync liberates your Spotify library, enabling offline access, permanent bac
 - [python 3.X](https://www.python.org/downloads/)
 - [pip](https://pypi.org/project/pip/)
 
-### Python user global installation
-
-- Clone the repository
-- get a Spotify API key
-
-  - Log in [here](https://developer.spotify.com/dashboard/)
-  - Create an app and set Redirect URIs to `http://localhost:8888/callback`
-  - navigate to its settings
-  - Copy the `client_id` and `client_secret` into your .env file
-
-  ```env
-  # Enter your Spotify API credentials here
-  SPOTIFY_CLIENT_ID=yourID
-  SPOTIFY_CLIENT_SECRET=yourSecret
-
-  # Time between two synchronizations in hours
-  SCHEDULE_TIME=8
-
-  # Path to download files to
-  DOWNLOAD_PATH=./downloads/
-  DEBUG=False
-
-  # This should not be changed unless you know what you're doing
-  SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
-  ```
-
-- After setting up your .env file run `setup.bat` or `setup.sh`
-- Authenticate the app in your browser
-- You're good to go!
-
 ### Python venv
 
 - Clone the repository
 - get a Spotify API key
 
   - Log in [here](https://developer.spotify.com/dashboard/)
-  - Create an app and set Redirect URIs to `http://localhost:8888/callback`
+  - Create an app
+    - set Redirect URIs to `http://localhost:8888/callback`
   - navigate to its settings
-  - Copy the `client_id` and `client_secret` into your .env file
+  - Copy the `client_id` and `client_secret`
+    - paste them into your .env file
 
   ```env
   # Enter your Spotify API credentials here
   SPOTIFY_CLIENT_ID=yourID
   SPOTIFY_CLIENT_SECRET=yourSecret
 
-  # Time between two synchronizations in hours
-  SCHEDULE_TIME=8
+  # Time between two synchronizations in minutes
+  SCHEDULE_TIME=60
 
   # Path to download files to
+  # Note: this *HAS* to end with a '/'
   DOWNLOAD_PATH=./downloads/
   DEBUG=False
 
@@ -100,6 +76,71 @@ SpotiSync liberates your Spotify library, enabling offline access, permanent bac
   SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
   ```
 
-- After setting up your .env file run `setupIN_VENV.bat` or `setupIN_VENV.sh`
+- After setting up your .env file run
+
+  ```bash
+  python -m venv venv
+  ```
+
+  ```bash
+  source venv/bin/activate
+  ```
+
+  or on windows:
+
+  ```bash
+  venv\Scripts\activate
+  ```
+
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+  ```bash
+  python3 gui.py
+  ```
+
+- Authenticate the app in your browser
+- You're good to go!
+
+### Python user global installation
+
+- Clone the repository
+- get a Spotify API key
+
+  - Log in [here](https://developer.spotify.com/dashboard/)
+  - Create an app
+    - set Redirect URIs to `http://localhost:8888/callback`
+  - navigate to its settings
+  - Copy the `client_id` and `client_secret`
+    - paste them into your .env file
+
+  ```env
+  # Enter your Spotify API credentials here
+  SPOTIFY_CLIENT_ID=yourID
+  SPOTIFY_CLIENT_SECRET=yourSecret
+
+  # Time between two synchronizations in minutes
+  SCHEDULE_TIME=60
+
+  # Path to download files to
+  # Note: this *HAS* to end with a '/'
+  DOWNLOAD_PATH=./downloads/
+  DEBUG=False
+
+  # This should not be changed unless you know what you're doing
+  SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
+  ```
+
+- After setting up your .env file run
+
+  ```bash
+  pip install -r requirements.txt
+  ```
+
+  ```bash
+  python3 gui.py
+  ```
+
 - Authenticate the app in your browser
 - You're good to go!

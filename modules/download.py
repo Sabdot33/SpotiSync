@@ -1,6 +1,5 @@
 import requests
 import os
-import sys
 
 def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=False):
     """Downloads the audio from the given ID and saves it as an MP3 file to the specified path.
@@ -18,9 +17,12 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
     if not os.path.exists(path):
         os.makedirs(path)
     
-    # Check if filename includes a question mark, if so remove
-    if "?" in filename:
-        filename = filename.split("?")[0]
+    # Check if filename includes a question mark or slashes, if so replace
+    filename = filename.replace("?", " huh")
+    filename = filename.replace("/", "slash")
+    filename = filename.replace("//", "slash")
+    filename = filename.replace("\"", "slash")
+    filename = filename.replace("\\", "slash")
     
     # Create the full path including filename and check if it already exists
     full_path = os.path.join(path, filename)
@@ -28,7 +30,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         if skip==False:
             raise ValueError("File already exists: " + full_path)
         else:
-            if debug: print(f"File already exists: {full_path}")
+            if debug: print(f"DEBUG: File already exists: {full_path}")
             hasfailed=True
     
     try:
@@ -36,14 +38,14 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         response.raise_for_status()  # Raise an exception for non-200 status codes
     except requests.exceptions.RequestException as e:
         if skip==True:
-            if debug: print(f"Error downloading audio: {e}")
+            if debug: print(f"DEBUG: Error downloading audio: {e}")
             hasfailed=True     
         else:
             raise ValueError(f"Error downloading audio: {e}")
     # Check content type before saving
     if response.headers.get('content-type', '').lower() != 'audio/mpeg':
         if skip==True:
-            if debug: print("Downloaded content is not an MP3 file.")
+            if debug: print("DEBUG: Downloaded content is not an MP3 file.")
             hasfailed=True
         else:
             raise ValueError("Downloaded content is not an MP3 file.")
@@ -53,7 +55,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         for chunk in response.iter_content(1024):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
-    print(f"Audio downloaded and saved as: {filename}")
+    if debug:print(f"DEBUG: Audio downloaded and saved as: {filename}")
 
         
     return hasfailed
