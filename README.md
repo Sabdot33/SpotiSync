@@ -71,6 +71,7 @@ I started this project because in my opinion Spotify has made some questionable 
   # Note: this *HAS* to end with a '/'
   DOWNLOAD_PATH=./downloads/
   DEBUG=False
+  STARTUP_WITH_GUI=True
 
   # This should not be changed unless you know what you're doing
   SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
@@ -127,6 +128,7 @@ I started this project because in my opinion Spotify has made some questionable 
   # Note: this *HAS* to end with a '/'
   DOWNLOAD_PATH=./downloads/
   DEBUG=False
+  STARTUP_WITH_GUI=True
 
   # This should not be changed unless you know what you're doing
   SPOTIFY_REDIRECT_URI=http://localhost:8888/callback

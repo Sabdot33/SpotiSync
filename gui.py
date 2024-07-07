@@ -352,5 +352,6 @@ def search_artist_and_display(query, debug=False):
         
 root.mainloop()
 
-if not STARTUP_WITH_GUI:
+if STARTUP_WITH_GUI == False:
+    sleep(1)
     root.deiconify()
