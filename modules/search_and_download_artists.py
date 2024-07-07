@@ -90,7 +90,7 @@ def get_and_download_artist_albums_and_respective_tracks(artist_id, path='./', d
             track_name = track['track_name']
             track_id = track['track_id']
             try:
-                download_and_save_mp3(track_id, track_name, album_path, debug=debug)
+                download_and_save_mp3(track_id, track_name + ".mp3", album_path, debug=debug)
             except Exception as e:
                 if debug: print(f"Error downloading {track_name}: {e}")
                 

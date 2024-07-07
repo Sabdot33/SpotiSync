@@ -100,7 +100,12 @@ def download_all_playlists_in_thread(path=download_path, debug=debug):
 def on_click_tray():
     if debug: print("DEBUG: Clicked tray icon")
     root.deiconify()
-    
+
+def on_exit():
+    if debug: print("DEBUG: Exiting")
+    root.destroy()
+    os._exit(0)
+
 def create_tray_icon(root):
     icon = pystray.Icon("SpotiSync")
     icon.icon = Image.open("./assets/sync_icon.png")
@@ -109,8 +114,7 @@ def create_tray_icon(root):
     icon.menu = Menu(
         MenuItem('Open GUI', root.deiconify),
         MenuItem('Force Synchronization', force_trigger_sync),
-        MenuItem('Show Logs', show_logs),
-        MenuItem('Quit', os._exit)
+        MenuItem('Quit', on_exit)
     )
     if os.name == "posix":
         if debug: print("DEBUG: Setting backend")
