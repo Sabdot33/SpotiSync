@@ -1,7 +1,7 @@
 import requests
 import os
 
-def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=False):
+def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, DEBUG=False):
     """Downloads the audio from the given ID and saves it as an MP3 file to the specified path.
 
     Args:
@@ -30,7 +30,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         if skip==False:
             raise ValueError("File already exists: " + full_path)
         else:
-            if debug: print(f"DEBUG: File already exists: {full_path}")
+            if DEBUG: print(f"DEBUG: File already exists: {full_path}")
             hasfailed=True
     
     try:
@@ -38,14 +38,14 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         response.raise_for_status()  # Raise an exception for non-200 status codes
     except requests.exceptions.RequestException as e:
         if skip==True:
-            if debug: print(f"DEBUG: Error downloading audio: {e}")
+            if DEBUG: print(f"DEBUG: Error downloading audio: {e}")
             hasfailed=True     
         else:
             raise ValueError(f"Error downloading audio: {e}")
     # Check content type before saving
     if response.headers.get('content-type', '').lower() != 'audio/mpeg':
         if skip==True:
-            if debug: print("DEBUG: Downloaded content is not an MP3 file.")
+            if DEBUG: print("DEBUG: Downloaded content is not an MP3 file.")
             hasfailed=True
         else:
             raise ValueError("Downloaded content is not an MP3 file.")
@@ -55,7 +55,7 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, debug=
         for chunk in response.iter_content(1024):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
-    if debug:print(f"DEBUG: Audio downloaded and saved as: {filename}")
+    if DEBUG:print(f"DEBUG: Audio downloaded and saved as: {filename}")
 
         
     return hasfailed

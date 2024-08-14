@@ -6,19 +6,19 @@ import os
 import json
 import time
 
-def fetch_user_lib_and_save_all(debug=False):
+def fetch_user_lib_and_save_all(DEBUG=False):
     """
     Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
     Then, it downloads the audio files for each song and saves them to a specified path.
     
     Args:
-        debug (bool, optional): If True, prints debug information. Defaults to False.
+        DEBUG (bool, optional): If True, prints DEBUG information. Defaults to False.
     
     Returns:
         bool: True if all songs were downloaded successfully, False otherwise.
     """
     
-    dbg = debug
+    dbg = DEBUG
     
     load_dotenv()
 
@@ -54,7 +54,7 @@ def fetch_user_lib_and_save_all(debug=False):
     with open('song_data.json', 'w') as f:
         json.dump(song_data, f, indent=4)
 
-    if debug: print("DEBUG: Song data extracted and saved to song_data.json")
+    if DEBUG: print("DEBUG: Song data extracted and saved to song_data.json")
 
     with open('song_data.json', 'r') as f:
         data = json.load(f)
@@ -63,12 +63,12 @@ def fetch_user_lib_and_save_all(debug=False):
 
     for item in data:
         try:
-            download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH, debug=dbg)
+            download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=DW_PATH, DEBUG=dbg)
         except Exception as e:
             if os.name == 'nt':
                 pass
             else:
-                if debug: print(f"DEBUG: {item['name']}.mp3 (Error: {e})")
+                if DEBUG: print(f"DEBUG: {item['name']}.mp3 (Error: {e})")
             if not str(e).startswith("File already exists"):
                 failed_items.append(f"{item['name']}.mp3:  {e})")
                 
@@ -77,7 +77,7 @@ def fetch_user_lib_and_save_all(debug=False):
     try:
         os.remove('errors.log')
     except Exception as e:
-        if debug: print(f"DEBUG: {e}")
+        if DEBUG: print(f"DEBUG: {e}")
     with open('errors.log', 'w') as log:
         if len(failed_items) > 0:
             print(f"Failed to download {len(failed_items)} items")
@@ -85,11 +85,11 @@ def fetch_user_lib_and_save_all(debug=False):
             # ^First 4 lines of errors.log^
             for item in failed_items:
                 try:
-                    if debug: print(f"- {item}")
+                    if DEBUG: print(f"- {item}")
                     log.write(f"- {item}\n")
                 except Exception as e:
                     log.write(f"Cloud not log error; python raised an exception: {e}\nSee https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
-            if debug: print("DEBUG: Logged errors to errors.log")
+            if DEBUG: print("DEBUG: Logged errors to errors.log")
         else:
             print("All songs downloaded successfully! Enjoy :3")
             return True

@@ -1,361 +1,413 @@
 # NEEDED WINDOWS DEPENDENCIES: (PIL) pystray requests {dotenv}: load_dotenv spotipy schedule
 # NEEDED LINUX DEPENDENCIES: pystray requests load_dotenv spotipy schedule
 
-from tkinter import ttk
+import pystray
+import os
+import json
+import requests
+import io
+import sys
 from threading import Thread
 from modules.search_and_download_artists import *
 from modules.fetch_favorite_songs import fetch_user_lib_and_save_all
 from modules.schedule_download import run_scheduler
 from modules.fetch_and_download_playlists import *
 from time import sleep
-from PIL import Image, ImageTk
+from PIL import Image
 from pystray import MenuItem, Menu
 from dotenv import load_dotenv
-import tkinter as tk
-import pystray
-import os
-import json
-import requests
-import io
+from PyQt5.QtWidgets import QApplication, QMainWindow, QHBoxLayout, QTabWidget, QWidget, QCheckBox, QVBoxLayout, QLineEdit, QLabel, QPushButton, QScrollArea, QScrollBar, QMenu, QAction, QTextBrowser, QTextEdit
+from PyQt5.QtGui import QPixmap, QTextCursor
+from PyQt5.QtCore import Qt, QPoint
 
 load_dotenv()
-download_path = os.getenv('DOWNLOAD_PATH_MUSIC')
+DOWNLOAD_PATH = os.getenv('DOWNLOAD_PATH_MUSIC')
 
-global debug
+DEBUG = os.getenv('DEBUG').lower() == 'true'
 
-# if you're reading this i'm sorry i really am please dont kill me
-debugenv = os.getenv('DEBUG')
-if debugenv == "True" or "TRUE" or "true":
-    debug = True
-elif debugenv == "False" or "FALSE" or "false":
-    debug = False
-else:
-    print("WARN: Invalid value for DEBUG, defaulting to False") 
-    debug = False
-
-if not download_path.endswith("/"):
-    download_path += "/"
-    if debug: print(f"DEBUG: Added trailing slash to download_path: {download_path}")
-    
-startupenv = os.getenv('STARTUP_WITH_GUI')
-if startupenv == "True" or "TRUE" or "true":
-    STARTUP_WITH_GUI = True
-elif debugenv == "False" or "FALSE" or "false":
-    STARTUP_WITH_GUI = False
-else:
-    print("WARN: Invalid value for STARTUP_WITH_GUI, defaulting to True") 
-    STARTUP_WITH_GUI = True
-
-if debug: print(f"DEBUG: Download path: {download_path}")
+if DEBUG: print(f"DEBUG: Download path: {DOWNLOAD_PATH}")
 
 def force_trigger_sync_thread():
-    force_trigger_sync_thread = Thread(target=force_trigger_sync)
-    force_trigger_sync_thread.daemon = True
-    force_trigger_sync_thread.start()
-
-def force_trigger_sync():
-    if debug: print("DEBUG: Triggering synchronization")
-    force_sync_thread = Thread(target=fetch_user_lib_and_save_all, args=(debug,))
+    if DEBUG: print("DEBUG: Triggering synchronization")
+    force_sync_thread = Thread(target=fetch_user_lib_and_save_all, args=(DEBUG,))
     force_sync_thread.start()
-    
-    while force_sync_thread.is_alive():
-        status_label.config(text="Synchronization in progress...")
-        sync_button.config(state=tk.DISABLED)
-        root.update()
-    else:
-        sync_button.config(state=tk.NORMAL)
-        status_label.config(text="Synchronization complete!")
-        root.update()
-        def i_probably_could_have_done_this_better_but_i_am_lazy():
-            sleep(3)
-            status_label.config(text="")
-            root.update()
-        Thread(target=i_probably_could_have_done_this_better_but_i_am_lazy).start()
-
-def show_logs():
-    if debug: print("DEBUG: Showing logs")
-    logs_label.config(state="normal")
-    if not os.path.exists("errors.log"):
-        logs_label.config(text="No log file found")
-    else:
-        notebook.configure(width=1400, height=600)
-        with open("errors.log", "r") as logs:
-            logs_label.config(text=logs.read())
-            logs_button.config(text="Reload Logs")
-            root.update()
-        logs.close()
 
 def reset_window_size():
-    if debug: print("DEBUG: Resetting window size")
-    notebook.configure(width=800, height=400)
+    if DEBUG: print("DEBUG: Resetting window size")
 
 def quit_to_tray():
-    if debug: print("DEBUG: Quitting to tray")
-    root.withdraw()
+    if DEBUG: print("DEBUG: Quitting to tray")
+    gui.hide()
     
-def download_playlists_in_thread(playlist_id, playlist_name, path=download_path, debug=debug):
-    dwthread = Thread(target=download_playlist, args=(playlist_id, playlist_name, path, debug))
+def get_logs():
+    if DEBUG: print("DEBUG: Getting logs")
+    try :
+        return open("errors.log", "r").read()
+    except FileNotFoundError:
+        return "No log file found"
+    
+def download_playlists_in_thread(playlist_name, playlist_id, path=DOWNLOAD_PATH, DEBUG=False):
+    dwthread = Thread(target=download_playlist, args=(playlist_id, path, DEBUG))
     dwthread.start()
     
-def download_all_playlists_in_thread(path=download_path, debug=debug):
-    dwthread = Thread(target=download_all_playlists, args=(path, debug))
+def download_all_playlists_in_thread(path=DOWNLOAD_PATH, DEBUG=DEBUG):
+    dwthread = Thread(target=download_all_playlists, args=(path, DEBUG))
     dwthread.start()
 
 def on_click_tray():
-    if debug: print("DEBUG: Clicked tray icon")
-    root.deiconify()
+    if DEBUG: print("DEBUG: Clicked tray icon")
+    gui.show()
 
 def on_exit():
-    if debug: print("DEBUG: Exiting")
-    root.destroy()
+    if DEBUG: print("DEBUG: Exiting")
     os._exit(0)
 
-def create_tray_icon(root):
+def create_tray_icon():
     icon = pystray.Icon("SpotiSync")
     icon.icon = Image.open("./assets/sync_icon.png")
     icon.title = "SpotiSync"
     icon.on_left_click = on_click_tray
     icon.menu = Menu(
-        MenuItem('Open GUI', root.deiconify),
-        MenuItem('Force Synchronization', force_trigger_sync),
+        MenuItem('Open GUI', print("NOT WORKING")), # TODO: fix this
+        MenuItem('Force Synchronization', force_trigger_sync_thread),
         MenuItem('Quit', on_exit)
     )
     if os.name == "posix":
-        if debug: print("DEBUG: Setting backend")
+        if DEBUG: print("DEBUG: Setting backend")
         # gtk xorg appindicator; win32; darwin
-        #os.environ["PYSTRAY_BACKEND"] = "win32"
+        os.environ["PYSTRAY_BACKEND"] = ""
     icon.run_detached()
     backend = os.getenv("PYSTRAY_BACKEND")
-    if debug: print(f"DEBUG: Created tray icon with backend: {backend}")
+    if DEBUG: print(f"DEBUG: Created tray icon with backend: {backend}")
 
-root = tk.Tk()
+# TODO: uncomment and pray
+create_tray_icon()
 
-# Create tray icon in detached mode
-create_tray_icon(root)
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
 
-# Scheduler running in BG
-sync_thread = Thread(target=run_scheduler, args=(debug,))
-sync_thread.daemon = True
-sync_thread.start()
+        self.setWindowTitle("SpotiSync")
+        self.setGeometry(100, 100, 800, 800)
+
+        self.tab_widget = QTabWidget()
+        self.setCentralWidget(self.tab_widget)
+
+        self.create_tabs()
+
+    def create_tabs(self):
+        self.synchronization_tab = QWidget()
+        self.playlists_tab = QWidget()
+        self.logs_tab = QWidget()
+        self.settings_tab = QWidget()
+        self.artists_tab = QWidget()
+
+        self.tab_widget.addTab(self.synchronization_tab, "Synchronization")
+        self.tab_widget.addTab(self.playlists_tab, "Playlists")
+        self.tab_widget.addTab(self.artists_tab, "Artists")
+        self.tab_widget.addTab(self.logs_tab, "Logs")
+        self.tab_widget.addTab(self.settings_tab, "Settings")
+
+        self.create_synchronization_tab()
+        self.create_playlists_tab()
+        self.create_artists_tab()
+        self.create_logs_tab()
+        self.create_settings_tab()
+
+    def create_synchronization_tab(self):
+        layout = QVBoxLayout()
+            
+        welcome_label = QLabel("Welcome to SpotiSync!")
+        welcome_label.setStyleSheet("font-size: 24pt;")
+
+        welcome_desc = QLabel("This project is supposed to be a set-and-forget thing, \nmeaning you run it once, and it just works.")
+        welcome_desc.setWordWrap(True)
+
+        posix_label = QLabel("")
+        if os.name == "posix":
+            posix_label.setText("Note that the tray icon will very likely NOT work on Linux")
+            posix_label.setStyleSheet("color: red; font-weight: bold;")
+
+        sync_button = QPushButton("Force Synchronization")
+        sync_button.clicked.connect(force_trigger_sync_thread)
+        quit_to_tray_button = QPushButton("Quit to Tray")
+        quit_to_tray_button.clicked.connect(lambda self: quit_to_tray(self))
+
+        layout.addWidget(welcome_label)
+        layout.addWidget(welcome_desc)
+        layout.addWidget(posix_label)
+        layout.addWidget(sync_button)
+        layout.addWidget(quit_to_tray_button)
+
+        self.synchronization_tab.setLayout(layout)
+        
 
 
-root.title("SpotiSync")
-notebook = ttk.Notebook(root)
-notebook.pack(fill="both", expand=True, padx=10, pady=10)
-notebook.configure(width=800,
-                   height=400,
-                   )
+    def create_playlists_tab(self):
+        layout = QVBoxLayout()
 
-frame1 = tk.Frame(notebook)
-frame2 = tk.Frame(notebook)
-frame3 = tk.Frame(notebook)
-frame4 = tk.Frame(notebook)
-frame5 = tk.Frame(notebook)
+        top_label = QLabel("Playlists - Choose a playlist to download")
+        top_label.setStyleSheet("font-size: 20pt;")
 
-notebook.add(frame1, text="Synchronization")
-notebook.add(frame4, text="Playlists")
-notebook.add(frame5, text="Artists")
-notebook.add(frame2, text="Logs")
-notebook.add(frame3, text="Settings")
+        top_desc = QLabel("Download all playlists or choose one to download; \nThis Menu will not change its appearance \nbut the playlists will be downloaded to your Downloads folder")
+        top_desc.setWordWrap(True)
 
-# Frame 1 - Main: Synchronization
-welcome_label = tk.Label(frame1, text="Welcome to SpotiSync!", font=("Arial", 24), padx=10, pady=25)
-welcome_label.pack()
+        refresh_button = QPushButton("Refresh")
+        refresh_button.clicked.connect(lambda: update_playlists_tab(DEBUG=DEBUG))
+        
+        download_all_button = QPushButton("Download all playlists")
+        download_all_button.clicked.connect(lambda: download_all_playlists_in_thread(path=DOWNLOAD_PATH, DEBUG=DEBUG))
 
-welcome_desc = tk.Label(frame1, text="This project is supposed to be a set-and-forget thing,"
-                                    "\nmeaning you run it once, and it just works."
-                                    "\nI will automatically download your liked songs as configured"
-                                    "\nbut you can also download any of your saved playlists"
-                                    "\n\nNow sometimes things don't work so i've included a logs section"
-                                    "\nwhere you can check what's wrong with your configuration"
-                                    "\n\nI hope you enjoy!", font=("Arial", 12), justify="center")
-welcome_desc.pack()
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
 
-if os.name == "posix":
-    if debug: print("DEBUG: Printing Warning")
-    warn_label = tk.Label(frame1, text="Note that the tray icon will very likely NOT work on Linux", font=("Arial", 12), foreground="red")
-    warn_label.pack()
+        playlist_widget = QWidget()
+        playlist_layout = QVBoxLayout()
 
-status_label = tk.Label(frame1, text="")
-status_label.pack()
+        def update_playlists_tab(DEBUG=False):
+            fetch_playlists(DEBUG)
 
-sync_button = tk.Button(frame1, text="Force Synchronization", command=force_trigger_sync_thread)
-sync_button.pack(anchor="n")
-
-quit_to_tray_button = tk.Button(frame1, text="Quit to Tray", command=quit_to_tray)
-quit_to_tray_button.pack(anchor="s")
-
-# Frame 2 - Logs
-notebook.bind("<<NotebookTabChanged>>", lambda event: show_logs() if event.widget.index(event.widget.select()) == 3 else reset_window_size())
-
-logs_desc = tk.Label(frame2, text="Here you can take a look at what went wrong with which songs.\n Note that this section only takes your liked songs in account, not your playlists", font=("Arial", 12))
-logs_desc.pack(padx=10, pady=25)
-
-logs_button = tk.Button(frame2, text="Load Logs", command=show_logs, padx=10, pady=10)
-logs_button.pack()
-
-empty_label_for_space = tk.Label(frame2, text="").pack()
-
-logs_label = tk.Label(frame2,
-                      text="",
-                      padx=10,
-                      pady=10,
-                      wraplength=1300,
-                      justify="left",
-                      font=("Courier New", 10) if os.name == "nt" else ("monospace", 10),
-                      background="#202020",
-                      foreground="#fffcf6",
-                      relief="solid",
-                      border="1")
-
-logs_label.config(state="disabled")
-logs_label.pack()
-
-# Frame 3 - Settings
-quit_to_tray_button = tk.Button(frame3, text="Quit to Tray", command=quit_to_tray)
-quit_to_tray_button.pack()
-
-quit_program = tk.Button(frame3, text="Quit", command=root.destroy)
-quit_program.pack()
-
-# Frame 4 - Playlists
-fetch_playlists(debug)
-
-with open ('playlist_data.json', 'r') as pld:
-    playlist_data = json.load(pld)
+            # Loop over the layout's widgets and remove them
+            while playlist_layout.count():
+                item = playlist_layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+            
+            with open ('playlist_data.json', 'r') as pld:
+                playlist_data = json.load(pld)
+                
+            for playlist in playlist_data:
+                playlist_name = playlist['name']
+                playlist_id = playlist['id']
+                
+                if DEBUG: print(f"IMG ID {playlist_id}")
     
-playlist_labels = []
-playlist_buttons = []
-playlist_names = []
+                Hlayout = QHBoxLayout()
 
-scrollbar = tk.Scrollbar(frame4)
-canvas = tk.Canvas(frame4, yscrollcommand=scrollbar.set)
-scrollbar.config(command=canvas.yview)
+                if os.path.exists(f"assets/cache/" + playlist_id + ".jpg"):
+                    pixmap = QPixmap(f"assets/cache/" + playlist_id + ".jpg")
+                else:
+                    pixmap = QPixmap("assets/playlist.png").scaled(128, 128, Qt.KeepAspectRatio)
+                
+                playlist_image_label = QLabel()
+                playlist_image_label.setPixmap(pixmap)
+                
+                playlist_label = QLabel(playlist_name)
+                playlist_label.setWordWrap(True)
+                    
+                # Okay this is interesting:
+                # The problem is that the button will not pass through the first argument to the download_playlists_in_thread function
+                # Well actually it will but it passes through "False" no matter the input
+                # I have no idea how to fix this because this is very likely to be a library error.
+                # The way i deal with it is i pass throught that first argument and just let it be and then interestingly, 
+                # the second argument works fine as it passes through the actual string of the ID
+                playlist_button = QPushButton("Download")
+                playlist_button.clicked.connect(
+                    lambda 
+                    playlist_name=playlist_name,
+                    playlist_id=playlist_id,
+                    path=DOWNLOAD_PATH,
+                    DEBUG=DEBUG:
+                    download_playlists_in_thread(
+                    playlist_name=playlist_name,
+                    playlist_id=playlist_id,
+                    path=path,
+                    DEBUG=DEBUG
+                ))
+                
+                is_downloaded = os.path.exists(DOWNLOAD_PATH + playlist_name + "/")
+                
+                is_downloaded_label = QLabel()
+                if is_downloaded:
+                    is_downloaded_label.setPixmap(QPixmap("assets/checkmark.png"))
+                    playlist_button.setText("Update")
 
-frame_for_canvas = tk.Frame(canvas)
-canvas.create_window((0, 0), window=frame_for_canvas, anchor="nw")
-frame_for_canvas.bind("<Configure>", lambda event, canvas=canvas: canvas.configure(scrollregion=canvas.bbox("all")))
+                Hlayout.addWidget(playlist_image_label)
+                Hlayout.addWidget(playlist_label)
+                Hlayout.addWidget(playlist_button)
+                Hlayout.addWidget(is_downloaded_label)
+                
+                playlist_layout.addLayout(Hlayout)
 
-canvas.configure(yscrollcommand=scrollbar.set)
-
-scrollbar.pack(side="right", fill="y")
-canvas.pack(side="left", fill="both", expand=True)
-
-top_label = tk.Label(frame_for_canvas, text="Playlists - Choose a playlist to download", font=("Arial", 20))
-top_label.grid(row=0, column=0, columnspan=2, padx=50, pady=15)
-
-top_desc = tk.Label(frame_for_canvas, text="Download all playlists or choose one to download;\nThis Menu will not change its appearance\n but the playlists will be downloaded to your Downloads folder", font=("Arial", 12))
-top_desc.grid(row=1, column=0, columnspan=2, padx=50, pady=15, sticky="ew", ipadx=5, ipady=5, )
-
-download_all_button = tk.Button(frame_for_canvas, text="Download all playlists", command=lambda: download_all_playlists(path=download_path, debug=debug))
-download_all_button.grid(row=2, column=0, padx=50, pady=15, ipadx=5, ipady=5, sticky="ew")
-
-
-for item in playlist_data:
-    playlist_image_url = item['image']
-    playlist_name = item['name']
-    playlist_id = item['id']
-
-    try:
-        response = requests.get(playlist_image_url, stream=True, timeout=1)
-        response.raise_for_status()
-        image_data = b''
-        for chunk in response.iter_content(1024):
-            image_data += chunk
-        PILimage = Image.open(io.BytesIO(image_data))
-        playlist_image = PILimage.resize((128, 128))
-        playlist_image = ImageTk.PhotoImage(playlist_image)
-        if debug: print(f"DEBUG: Playlist image downloaded for {playlist_name}")
-    except Exception as e:
-        if debug:
-            print(f"DEBUG: Error while downloading playlist_image: {e}")
-        playlist_image = Image.open("./assets/playlist.png").resize((128, 128))
-        playlist_image = ImageTk.PhotoImage(playlist_image)
+        update_playlists_tab(DEBUG=DEBUG)
         
-    label = tk.Label(frame_for_canvas, text=playlist_name, image=playlist_image)
-    label.image = playlist_image
+        playlist_widget.setLayout(playlist_layout)
+        scroll_area.setWidget(playlist_widget)
+        
+        layout.addWidget(top_label)
+        layout.addWidget(top_desc)
+        layout.addWidget(refresh_button)
+        layout.addWidget(download_all_button)
+        layout.addWidget(scroll_area)
+
+        self.playlists_tab.setLayout(layout)
+
+    def create_artists_tab(self):
+        layout = QVBoxLayout()
+
+        artists_label = QLabel("Artists")
+        artists_label.setStyleSheet("font-size: 20pt;")
+
+        artists_desc = QLabel("Search for an artist and download all their songs")
+        artists_desc.setWordWrap(True)
+        
+        search_bar = QLineEdit()
+        search_bar.returnPressed.connect(lambda: search_artist_and_display(search_bar.text(), DEBUG=DEBUG))
+        
+        search_button = QPushButton("Search")
+        search_button.setStyleSheet("width: 100px;")
+        search_button.clicked.connect(lambda: search_artist_and_display(search_bar.text(), DEBUG=DEBUG))
+        
+        Search_layout = QHBoxLayout()
+        Search_layout.addWidget(search_bar)
+        Search_layout.addWidget(search_button)
+        
+        Search_widget = QWidget()
+        Search_widget.setLayout(Search_layout)
+        
+        artist_widget = QWidget()
+        artist_layout = QVBoxLayout()
+        
+        def search_artist_and_display(query, DEBUG=False):
+            
+            # TODO: Remove previous widgets in artist_layout
+            # Loop over the layout's widgets and remove them
+            while artist_layout.count():
+                item = artist_layout.takeAt(0)
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
+            
+            
+            if DEBUG: print(f"DEBUG: Searching for artist {query}")
+            search_artist(query, DEBUG=DEBUG)
+            with open("artist_data.json", "r") as f:
+                artist_data = json.load(f)
+                
+            for artist in artist_data:
+                artist_name = artist['name']
+                artist_image = artist['image']
+                artist_id = artist['id']
+                
+                response = requests.get(artist_image, stream=True, timeout=1)
+                response.raise_for_status()
+                image_data = b''
+                for chunk in response.iter_content(1024):
+                    image_data += chunk
+                PILimage = Image.open(io.BytesIO(image_data))
+                artist_image = PILimage.resize((128, 128))
+                if DEBUG: print(f"DEBUG: Artist image downloaded for {artist_name}")
+                
+                    # Convert PIL Image to bytes buffer
+                buffer = io.BytesIO()
+                artist_image.save(buffer, format='PNG')
+                buffer.seek(0)
     
-    playlist_button = tk.Button(frame_for_canvas, text=playlist_name,
-                                command=lambda playlist_name=playlist_name, playlist_id=playlist_id: download_playlists_in_thread(
-                                    playlist_id=playlist_id,
-                                    playlist_name=playlist_name,
-                                    path=download_path,
-                                    debug=debug
-                                    ))
-    playlist_labels.append(label)
-    playlist_buttons.append(playlist_button)
-    playlist_names.append(playlist_name)
-    if debug: print(f"DEBUG: Playlist {playlist_name} added to GUI: {label}")
+                # Create QPixmap from bytes buffer
+                pixmap = QPixmap()
+                pixmap.loadFromData(buffer.read())
 
-def update_playlists_tab(debug=False):
-    if debug: print("DEBUG: Updating playlists tab")
-    for i in range(len(playlist_labels)):
-        # Calculate the row and column indices
-        row_num = i // 1 + 3 # Integer division to determine the row (+ 3 because of the elements on the top)
-        col_num = i % 1  # Modulus operation to determine the column within the row
+                Hlayout = QHBoxLayout()
+                
+                image = QLabel()
+                image.setPixmap(pixmap)
+                
+                label = QLabel(text=artist_name)
+                label.setStyleSheet("font-size: 20pt; text-align: center;")
+                
+                artist_button = QPushButton(text="Download")
+                artist_button.clicked.connect(
+                                            lambda 
+                                            playlist_name=artist_name,
+                                            artist_id=artist_id: 
+                                            get_and_download_artist_albums_and_respective_tracks_thread(
+                                            playlist_name=artist_name,
+                                            artist_id=artist_id,
+                                            path=DOWNLOAD_PATH + "Artists/",        
+                                            DEBUG=DEBUG
+                                            ))
+                
+                # Check if the artist has already been downloaded
+                is_downloaded = os.path.exists(DOWNLOAD_PATH + "Artists/" + artist_name + "/")
+                
+                is_downloaded_label = QLabel("")
+                if is_downloaded:
+                    is_downloaded_label.setPixmap(QPixmap("assets/checkmark.png"))
+                    artist_button.setText("Update")
+                    
+                Hlayout.addWidget(image)
+                Hlayout.addWidget(label)
+                Hlayout.addWidget(artist_button)
+                Hlayout.addWidget(is_downloaded_label)
+                
+                HWidget = QWidget()
+                HWidget.setLayout(Hlayout)
+                
+                artist_layout.addWidget(HWidget)
+                
+                if DEBUG: print(f"DEBUG: Artist {artist_name} added to GUI: {label}")
 
-        playlist_labels[i].grid(row=row_num, column=col_num*2, padx=10, pady=10, ipadx=10, sticky="ew")
-        playlist_buttons[i].grid(row=row_num, column=col_num*2 + 1, padx=10, pady=10, sticky="ew")
-        # display "Downloaded" if playlist name already exists at download location
-        if playlist_names[i] in os.listdir(download_path):
-            downloaded_label = tk.Label(frame_for_canvas, text="Already Downloaded", font=("Arial", 12), foreground="#101010")
-            downloaded_label.grid(row=row_num, column=col_num*2 + 2, padx=10, pady=10, sticky="ew")
-
-update_playlists_tab(debug=debug)
-
-# Frame 5 - Artists, Albums
-desc_label_artists = tk.Label(frame5, text="Artists", font=("Arial", 20), justify="left")
-desc_label_artists.grid(row=0, column=0, padx=10, pady=10)
-
-desc_label_artists_desc = tk.Label(frame5, text="Search for an artist and download all their songs", font=("Arial", 12), justify="left")
-desc_label_artists_desc.grid(row=1, column=0, padx=10, pady=10)
-
-search_bar = tk.Entry(frame5, font=("Arial", 12), width=40)
-search_bar.grid(row=2, column=0, padx=10, pady=10)
-
-search_button = tk.Button(frame5, text="Search", command=lambda: search_artist_and_display(search_bar.get(), debug=debug))
-search_button.grid(row=2, column=1, padx=10, pady=10, sticky="ew")
-
-def search_artist_and_display(query, debug=False):
-    
-    notebook.configure(width=800, height=800)
-    
-    if debug: print(f"DEBUG: Searching for artist {query}")
-    search_artist(query, debug=debug)
-    with open("artist_data.json", "r") as f:
-        artist_data = json.load(f)
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
         
-    for artist in artist_data:
-        artist_name = artist['name']
-        artist_image = artist['image']
-        artist_id = artist['id']
+        layout.addWidget(artists_label)
+        layout.addWidget(artists_desc)
+        layout.addWidget(Search_widget)
+        layout.addWidget(scroll_area)
         
-        response = requests.get(artist_image, stream=True, timeout=1)
-        response.raise_for_status()
-        image_data = b''
-        for chunk in response.iter_content(1024):
-            image_data += chunk
-        PILimage = Image.open(io.BytesIO(image_data))
-        artist_image = PILimage.resize((128, 128))
-        artist_image = ImageTk.PhotoImage(artist_image)
-        if debug: print(f"DEBUG: Artist image downloaded for {artist_name}")
+        artist_widget.setLayout(artist_layout)
+        scroll_area.setWidget(artist_widget)
         
-        label = tk.Label(frame5, text=artist_name, image=artist_image)
-        label.image = artist_image
-        
-        artist_button = tk.Button(frame5, text=artist_name,
-                                command=lambda artist_name=artist_name, artist_id=artist_id: get_and_download_artist_albums_and_respective_tracks_thread(
-                                    artist_id=artist_id,
-                                    path=download_path + "Artists/",
-                                    debug=debug
-                                ))
-        if debug: print(f"DEBUG: Artist {artist_name} added to GUI: {label}")
-        
-        label.grid(row=artist_data.index(artist) + 4, column=0, padx=10, pady=10, sticky="ew")
-        artist_button.grid(row=artist_data.index(artist) + 4, column=1, padx=10, pady=10, sticky="ew")
-        
-root.mainloop()
+        self.artists_tab.setLayout(layout)
 
+    def create_logs_tab(self):
+        layout = QVBoxLayout()
+
+        logs_label = QLabel("Logs")
+        logs_label.setStyleSheet("font-size: 20pt;")
+
+        logs_desc = QLabel("Here you can take a look at what went wrong with which songs. \nNote that this section only takes your liked songs in account, not your playlists")
+        logs_desc.setWordWrap(True)
+
+        logs_button = QPushButton("Load Logs")
+        logs_button.clicked.connect(lambda: logs_text.setText(get_logs()))
+
+        logs_text = QTextEdit("")
+        logs_text.setReadOnly(True)
+        logs_text.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px; font-family: monospace")
+
+        layout.addWidget(logs_label)
+        layout.addWidget(logs_desc)
+        layout.addWidget(logs_button)
+        layout.addWidget(logs_text)
+
+        self.logs_tab.setLayout(layout)
+
+    def create_settings_tab(self):
+        layout = QVBoxLayout()
+
+        settings_label = QLabel("Settings - not much to see here yet")
+        settings_label.setStyleSheet("font-size: 20pt;")
+
+        quit_to_tray_button = QPushButton("Quit to Tray")
+        quit_to_tray_button.clicked.connect(lambda: quit_to_tray(self))
+        
+        quit_program = QPushButton("Quit")
+        quit_program.clicked.connect(self.close)
+
+        layout.addWidget(settings_label)
+        layout.addWidget(quit_to_tray_button)
+        layout.addWidget(quit_program)
+
+        self.settings_tab.setLayout(layout)
+
+STARTUP_WITH_GUI = os.getenv('STARTUP_WITH_GUI').lower() == 'true'
+
+app = QApplication(sys.argv)
+gui = MainWindow()
+gui.show()
 if STARTUP_WITH_GUI == False:
-    sleep(1)
-    root.deiconify()
+    gui.hide()
+sys.exit(app.exec_())
+

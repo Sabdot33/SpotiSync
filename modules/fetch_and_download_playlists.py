@@ -5,33 +5,38 @@ import os
 import json
 import requests
 import zipfile
+from PIL import Image
+from io import BytesIO
 from threading import Thread
 
-def fetch_playlists(debug=False):
-    """
-    Fetches the user's saved playlists from Spotify and saves the playlist data to a JSON file.
-
-    Args:
-        debug (bool, optional): If True, prints debug information. Defaults to False.
-
-    Returns:
-        None
-    """
-
-    dbg = debug
-    
+def login_spotify(DEBUG=False):
     load_dotenv()
-
+    
     # Get environment variables
     CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
     CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
     REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
-
+    
     # Set up Spotify API authentication
     sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                                   client_secret=CLIENT_SECRET,
-                                                   redirect_uri=REDIRECT_URI,
-                                                   scope="user-library-read"))
+                                                client_secret=CLIENT_SECRET,
+                                                redirect_uri=REDIRECT_URI,
+                                                scope="user-library-read"))
+    
+    return sp
+        
+def fetch_playlists(DEBUG=False):
+    """
+    Fetches the user's saved playlists from Spotify and saves the playlist data to a JSON file.
+
+    Args:
+        DEBUG (bool, optional): If True, prints DEBUG information. Defaults to False.
+
+    Returns:
+        None
+    """
+    
+    sp = login_spotify()
 
     # Fetch user's saved playlists
     results = sp.current_user_playlists(limit=50)
@@ -47,6 +52,22 @@ def fetch_playlists(debug=False):
     playlists = playlists#[::-1]
     for playlist in playlists:
         images = playlist['images']
+        
+        # save image in cache folder
+        if os.path.exists(f"assets/cache/" + playlist["id"] + ".jpg"):
+            if DEBUG: print("Image already exists in cache")
+            pass
+        else:
+            if images:
+                image_url = images[0]['url']
+                response = requests.get(image_url)
+                PILimage = Image.open(BytesIO(response.content))
+                PILimage = PILimage.resize((128, 128))
+                if not os.path.exists('./assets/cache/'):
+                    os.makedirs('./assets/cache/')
+                PILimage.save(f'./assets/cache/{playlist["id"]}.jpg')
+                if DEBUG: print("Image saved in cache")
+        
         if images:
             playlist_data.append({
                 'name': playlist['name'],
@@ -65,32 +86,30 @@ def fetch_playlists(debug=False):
     with open('playlist_data.json', 'w') as f:
         json.dump(playlist_data, f, indent=4)
         
-def download_playlist(playlist_id, playlist_name, path, debug=False):
-    """
-    Downloads a playlist from a given URL and saves it to a specified path.
-
-    Args:
-        playlist_id (str): The ID of the playlist to download.
-        playlist_name (str): The name of the playlist to download.
-        path (str): The path where the playlist will be saved.
-        debug (bool, optional): If True, prints debug information. Defaults to False.
-
-    Raises:
-        ValueError: If there is an error downloading the playlist or if the downloaded data is not a ZIP file.
-
-    Returns:
-        None
-    """
+def download_playlist(playlist_id, path=os.getenv('DOWNLOAD_PATH_MUSIC'), DEBUG=False):
+    
+    # get playlist name with ID:
+    def get_playlist_name(playlist_id, DEBUG=False):
+        sp = login_spotify(DEBUG)
+        return sp.playlist(str(playlist_id))['name']
+    
+    playlist_name = get_playlist_name(playlist_id, DEBUG)
+    
+    if DEBUG: print(f"DEBUG: path: {path} playlist_id: {playlist_id} playlist_name: {playlist_name}")
+    
+    if not path.endswith("/"):
+        path += "/"
+        if DEBUG: print("DEBUG: Added '/' to path: " + path)
     
     if not os.path.exists(path):
         os.makedirs(path)
         
     # Create the full path including filename and check if it already exists
-    full_path = os.path.join(path, playlist_name) + "/"
+    full_path = path + playlist_name + "/"
     if os.path.exists(full_path):
         print("playlist already exists: " + full_path)
         print("Updating playlist")   
-    if debug: print("DEBUG: Downloading playlist to " + full_path)
+    if DEBUG: print("DEBUG: Downloading playlist to " + full_path)
         
     url = f"https://yank.g3v.co.uk/playlist/{playlist_id}"
     hasfailed=False
@@ -113,22 +132,22 @@ def download_playlist(playlist_id, playlist_name, path, debug=False):
                 
     # unzip temp.zip to DW_PATH + playlist_name
     if not hasfailed:
-        if debug: print("DEBUG: Unzipping playlist")
+        if DEBUG: print("DEBUG: Unzipping playlist")
         with zipfile.ZipFile("temp.zip", 'r') as zip_ref:
             zip_ref.extractall(full_path)
     
     # remove temp.zip
-    if debug: print("DEBUG: Removing temp.zip")
+    if DEBUG: print("DEBUG: Removing temp.zip")
     os.remove("temp.zip")
-    if debug: print("DEBUG: Playlist downloaded to " + full_path)
+    if DEBUG: print("DEBUG: Playlist downloaded to " + full_path)
 
-def download_all_playlists(path, debug=False):
+def download_all_playlists(path, DEBUG=False):
     """
     Downloads all playlists from a JSON file containing playlist data.
 
     Args:
         path (str): The path where the playlists will be downloaded.
-        debug (bool, optional): If True, prints debug information. Defaults to False.
+        DEBUG (bool, optional): If True, prints DEBUG information. Defaults to False.
 
     Returns:
         None
@@ -142,11 +161,11 @@ def download_all_playlists(path, debug=False):
     If there is an error downloading a playlist, an exception is raised and a message is printed.
     """
     
-    dbg = debug
+    dbg = DEBUG
     
     if not os.path.exists(path):
         os.makedirs(path)
-        if debug: print("DEBUG: Created download path " + path)
+        if DEBUG: print("DEBUG: Created download path " + path)
         
     with open('playlist_data.json', 'r') as f:
         playlist_data = json.load(f)
@@ -155,7 +174,7 @@ def download_all_playlists(path, debug=False):
         playlist_id = playlist['id']
         playlist_name = playlist['name']
         try:
-            download_playlist(playlist_id, playlist_name, path, debug=dbg)
+            download_playlist(playlist_id, playlist_name, path, DEBUG=dbg)
         except Exception as e:
             print(f"Error downloading playlist {playlist_name}: {e}")
 
@@ -171,3 +190,5 @@ if __name__ == "__main__":
     elif download_all == "y":
         path = input("Enter the download path: ") or "."
         download_all_playlists(path)
+    else:
+        print("Invalid fuckin input dumbass. pretty-please enter 'y' or 'n'.")
