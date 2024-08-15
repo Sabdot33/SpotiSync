@@ -1,0 +1,11 @@
+[spotipy]
+client_id = your_id
+client_secret = your_secret
+redirect_uri = http://localhost:8888/callback
+
+[settings]
+startup_with_gui = true
+debug = TrUE
+download_path = ./downloads/
+schedule_time = 60
+
