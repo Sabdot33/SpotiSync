@@ -813,7 +813,8 @@ if __name__ == "__main__":
     if DEBUG: print(f"DEBUG: Download path: {DOWNLOAD_PATH}")
 
     # TODO: uncomment and pray
-    # create_tray_icon()
+    create_tray_icon()
+    run_scheduler(DEBUG)
 
     STARTUP_WITH_GUI = os.getenv('STARTUP_WITH_GUI').lower() == 'true'
 
