@@ -404,6 +404,8 @@ class MainWindow(QMainWindow):
 
 STARTUP_WITH_GUI = os.getenv('STARTUP_WITH_GUI').lower() == 'true'
 
+run_scheduler(DEBUG)
+
 app = QApplication(sys.argv)
 gui = MainWindow()
 gui.show()
