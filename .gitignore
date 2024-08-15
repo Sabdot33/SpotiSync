@@ -10,4 +10,4 @@ bin
 *build*
 *temp*
 requirements_*
-config.ini
+config*.ini

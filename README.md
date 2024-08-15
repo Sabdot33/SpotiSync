@@ -35,9 +35,8 @@ I started this project because in my opinion Spotify has made some questionable 
 
 ### Bugs
 
-- [FIXED] Debug Flags are broken for some functions
 - [ ] on windows, logs are limited and the terminal will NOT print the logs, this is because of encoding and decoding issues with for example russian characters
-- [ ] Tray icon does not work properly on Linux (Tested on Cinnamon)
+- [ ] Tray icon does not work properly on Linux (Tested on Cinnamon and KDE)
       Note that this is likely a bug in the pystray library
 
 ## Installation
@@ -57,27 +56,8 @@ I started this project because in my opinion Spotify has made some questionable 
     - set Redirect URIs to `http://localhost:8888/callback`
   - navigate to its settings
   - Copy the `client_id` and `client_secret`
-    - paste them into your .env file
 
-  ```env
-  # Enter your Spotify API credentials here
-  SPOTIFY_CLIENT_ID=yourID
-  SPOTIFY_CLIENT_SECRET=yourSecret
-
-  # Time between two synchronizations in minutes
-  SCHEDULE_TIME=60
-
-  # Path to download files to
-  # Note: this *HAS* to end with a '/'
-  DOWNLOAD_PATH=./downloads/
-  DEBUG=False
-  STARTUP_WITH_GUI=True
-
-  # This should not be changed unless you know what you're doing
-  SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
-  ```
-
-- After setting up your .env file run
+- After setting up your API, run the following commands:
 
   ```bash
   python -m venv venv
@@ -101,48 +81,6 @@ I started this project because in my opinion Spotify has made some questionable 
   python3 gui.py
   ```
 
-- Authenticate the app in your browser
-- You're good to go!
-
-### Python user global installation
-
-- Clone the repository
-- get a Spotify API key
-
-  - Log in [here](https://developer.spotify.com/dashboard/)
-  - Create an app
-    - set Redirect URIs to `http://localhost:8888/callback`
-  - navigate to its settings
-  - Copy the `client_id` and `client_secret`
-    - paste them into your .env file
-
-  ```env
-  # Enter your Spotify API credentials here
-  SPOTIFY_CLIENT_ID=yourID
-  SPOTIFY_CLIENT_SECRET=yourSecret
-
-  # Time between two synchronizations in minutes
-  SCHEDULE_TIME=60
-
-  # Path to download files to
-  # Note: this *HAS* to end with a '/'
-  DOWNLOAD_PATH=./downloads/
-  DEBUG=False
-  STARTUP_WITH_GUI=True
-
-  # This should not be changed unless you know what you're doing
-  SPOTIFY_REDIRECT_URI=http://localhost:8888/callback
-  ```
-
-- After setting up your .env file run
-
-  ```bash
-  pip install -r requirements.txt
-  ```
-
-  ```bash
-  python3 gui.py
-  ```
-
+- You get asked for the API credentials
 - Authenticate the app in your browser
 - You're good to go!
