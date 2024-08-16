@@ -31,7 +31,7 @@ I started this project because in my opinion Spotify has made some questionable 
 - [✓] Playlist downloader (Soon to be synchronizer too)
 - [✓] Download all albums from your favorite Artist
 - [✓] Sync in the background
-- [✓] Runs in a venv
+- [✓] Settings page
 
 ### Bugs
 
