@@ -13,6 +13,12 @@ def download_and_save_mp3(id, filename="audio.mp3", path=".", skip=False, DEBUG=
 
     url = f"https://yank.g3v.co.uk/track/{id}"
     hasfailed=False
+    
+    # Format path properly, if not current directory
+    if path != ".":
+        if not path.endswith("/"):
+            path += "/"
+            if DEBUG: print("DEBUG: Added '/' to path: " + path)
 
     if not os.path.exists(path):
         os.makedirs(path)

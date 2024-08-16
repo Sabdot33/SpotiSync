@@ -1,4 +1,5 @@
 import os
+import shutil
 import sys
 import schedule
 import json
@@ -6,17 +7,19 @@ import spotipy
 import requests
 import zipfile
 import pystray
+import send2trash
 from time import sleep, strftime, localtime
 from modules.download import download_and_save_mp3
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image
-from threading import Thread
+from threading import Thread, main_thread
 from pystray import MenuItem, Menu
 from PIL import Image
 from io import BytesIO
-from PyQt5.QtWidgets import QApplication, QMessageBox, QInputDialog, QMainWindow, QHBoxLayout, QTabWidget, QWidget, QCheckBox, QVBoxLayout, QLineEdit, QLabel, QPushButton, QScrollArea, QTextEdit
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QApplication, QFormLayout, QMessageBox, QInputDialog, QMainWindow, QHBoxLayout, QTabWidget, QWidget, QCheckBox, QVBoxLayout, QLineEdit, QLabel, QPushButton, QScrollArea, QTextEdit
+from PyQt5.QtGui import QPixmap, QColor
 from PyQt5.QtCore import Qt
+from modules.pyqtSwitch import PyQtSwitch
 from configparser import ConfigParser
 
 # Placeholder Values
@@ -26,6 +29,7 @@ DEBUG = None
 CONFIG_FILE = "config.ini"
 
 class MainWindow(QMainWindow):
+    # init
     def __init__(self):
         super().__init__()
 
@@ -36,18 +40,38 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.tab_widget)
 
         self.create_tabs()
-        
+    
+    # Popup Dialog Boxes
+    @staticmethod
     def show_error_message(type, error_message):
         """
-        Displays an error message box.
+        Displays a message box with the specified type and error message.
 
         Args:
-            type (str): The type of error: critical, information, question
-            error_message (str): A detailed error message.
+            type (str): The type of message box to display. Can be "critical", "information", or "question".
+            error_message (str): The message to display in the message box.
+            
+        Returns:
+            None 
+            bool: True if the user clicked the "Yes" button, False if the user clicked the "No" button.
+            
+        Raises:
+            ValueError: If the specified type is not "critical", "information", or "question".
         """
-        QMessageBox.critical(QWidget(), "Error", error_message) if type == "critical" else \
-        QMessageBox.information(QWidget(), "Info", error_message) if type == "information" else \
-        QMessageBox.question(QWidget(), "Question", error_message)
+        if type == "critical":
+            QMessageBox.critical(QWidget(), "Error", error_message)
+            return None
+        elif type == "information":
+            QMessageBox.information(QWidget(), "Info", error_message)
+            return None
+        elif type == "question":
+            reply = QMessageBox.question(QWidget(), "Question", error_message, QMessageBox.Yes | QMessageBox.No)
+            if reply == QMessageBox.Yes:
+                return True
+            else:
+                return False
+        else:
+            raise ValueError("Invalid message box type")
         
 
     @staticmethod
@@ -59,6 +83,7 @@ class MainWindow(QMainWindow):
         else:
             raise Exception("User cancelled")
 
+    # Tabs
     def create_tabs(self):
         self.synchronization_tab = QWidget()
         self.playlists_tab = QWidget()
@@ -78,6 +103,7 @@ class MainWindow(QMainWindow):
         self.create_logs_tab()
         self.create_settings_tab()
 
+    # Synchronization Tab
     def create_synchronization_tab(self):
         layout = QVBoxLayout()
             
@@ -104,9 +130,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(quit_to_tray_button)
 
         self.synchronization_tab.setLayout(layout)
-        
 
-
+    # Playlists Tab
     def create_playlists_tab(self):
         layout = QVBoxLayout()
 
@@ -209,6 +234,7 @@ class MainWindow(QMainWindow):
 
         self.playlists_tab.setLayout(layout)
 
+    # Artists Tab
     def create_artists_tab(self):
         layout = QVBoxLayout()
 
@@ -326,6 +352,7 @@ class MainWindow(QMainWindow):
         
         self.artists_tab.setLayout(layout)
 
+    # Logs Tab
     def create_logs_tab(self):
         layout = QVBoxLayout()
 
@@ -349,24 +376,190 @@ class MainWindow(QMainWindow):
 
         self.logs_tab.setLayout(layout)
 
+    # Settings Tab
     def create_settings_tab(self):
         layout = QVBoxLayout()
 
-        settings_label = QLabel("Settings - not much to see here yet")
+        settings_label = QLabel("Settings")
         settings_label.setStyleSheet("font-size: 20pt;")
+        
+        # Spotify API Credentials - READ ONLY
+        label_spotify_credentials = QLabel("Spotify Credentials - These are you API Credentials you got from Spotify")
+        label_spotify_credentials.setStyleSheet("font-size: 12pt;")
+        
+        label1 = QLabel("Client ID")
+        
+        spotify_client_id = read_create_config().get('spotipy', 'client_id')
+        spotify_client_id_box = QLineEdit(spotify_client_id)
+        spotify_client_id_box.setReadOnly(True)
+        
+        label2 = QLabel("Client Secret")
+        
+        spotify_client_secret_box = QLineEdit(read_create_config().get('spotipy', 'client_secret'))
+        spotify_client_secret_box.setEchoMode(QLineEdit.Password)
+        spotify_client_secret_box.setReadOnly(True)
 
+        client_secret_show = QPushButton("Show Secret")
+        client_secret_show.clicked.connect(lambda: spotify_client_secret_box.setEchoMode(QLineEdit.Normal))
+        
+        client_secret_hide = QPushButton("Hide Secret")
+        client_secret_hide.clicked.connect(lambda: spotify_client_secret_box.setEchoMode(QLineEdit.Password))
+        
+        Hlayout = QHBoxLayout()
+        Hlayout.addWidget(client_secret_show)
+        Hlayout.addWidget(client_secret_hide)
+        
+        HWidget = QWidget()
+        HWidget.setLayout(Hlayout)
+        
+        layout_spotify_credentials = QVBoxLayout()
+        
+        layout_spotify_credentials.addWidget(label1)
+        layout_spotify_credentials.addWidget(spotify_client_id_box)
+        layout_spotify_credentials.addWidget(label2)
+        layout_spotify_credentials.addWidget(spotify_client_secret_box)
+        layout_spotify_credentials.addWidget(HWidget)
+        
+        widget_spotify_credentials = QWidget()
+        widget_spotify_credentials.setLayout(layout_spotify_credentials)
+        
+        # Update Interval
+        layout_schedule_time = QVBoxLayout()
+        label_schedule_time = QLabel("Update Interval - Time between two Synchronizations in minutes")
+        
+        schedule_time = read_create_config().getint('settings', 'schedule_time')
+        schedule_time_box = QLineEdit(str(schedule_time))
+        schedule_time_box.returnPressed.connect(lambda: self.schedule_time_save(schedule_time_box.text(), 'settings', 'schedule_time', DEBUG))
+        schedule_time_box.setStyleSheet("width: padding-left: 100px;;")
+        
+        schedule_time_save = QPushButton("Save")
+        schedule_time_save.clicked.connect(lambda: self.schedule_time_save(schedule_time_box.text(), 'settings', 'schedule_time', DEBUG))
+        
+        layout_schedule_time.addWidget(label_schedule_time)
+        layout_schedule_time.addWidget(schedule_time_box)
+        layout_schedule_time.addWidget(schedule_time_save)
+        widget_schedule_time = QWidget()
+        widget_schedule_time.setLayout(layout_schedule_time)
+        
+        # Download Path
+        layout_download_path = QVBoxLayout()
+        label_download_path = QLabel("Download Path - Root Path of where the songs will be downloaded.")
+        
+        download_path = read_create_config().get('settings', 'download_path')
+        download_path_box = QLineEdit(download_path)
+        download_path_box.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
+        download_path_box.returnPressed.connect(lambda: self.dw_path_save(download_path_box.text(), 'settings', 'download_path', DEBUG))
+        
+        download_path_save = QPushButton("Save")
+        download_path_save.clicked.connect(lambda: self.dw_path_save(download_path_box.text(), 'settings', 'download_path', DEBUG))
+        
+        layout_download_path.addWidget(label_download_path)
+        layout_download_path.addWidget(download_path_box)
+        layout_download_path.addWidget(download_path_save)
+        widget_download_path = QWidget()
+        widget_download_path.setLayout(layout_download_path)
+
+        # Debug Mode
+        layout_debug = QHBoxLayout()
+        label_debug = QLabel("Debug Mode")
+        
+        switch_debug = PyQtSwitch()
+        switch_debug.setChecked(read_create_config().getboolean('settings', 'debug'))
+        switch_debug.setAnimation(True)
+        switch_debug.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
+        switch_debug.toggled.connect(lambda checked: self.any_toggle(checked, 'settings', 'debug', DEBUG))
+        
+        layout_debug.addWidget(label_debug)
+        layout_debug.addWidget(switch_debug)
+        
+        widget_debug = QWidget()
+        widget_debug.setLayout(layout_debug)
+        
+        # Startup with GUI 
+        layout_startup = QHBoxLayout()
+        label_startup = QLabel("Startup with GUI")
+        
+        switch_startup = PyQtSwitch()
+        switch_startup.setChecked(read_create_config().getboolean('settings', 'startup_with_gui'))
+        switch_startup.setAnimation(True)
+        switch_startup.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
+        switch_startup.toggled.connect(lambda checked: self.any_toggle(checked, 'settings', 'startup_with_gui', DEBUG))
+        
+        layout_startup.addWidget(label_startup)
+        layout_startup.addWidget(switch_startup)
+        
+        widget_startup = QWidget()
+        widget_startup.setLayout(layout_startup)
+        
+        # Quit to tray
         quit_to_tray_button = QPushButton("Quit to Tray")
-        quit_to_tray_button.clicked.connect(lambda: quit_to_tray(self))
+        quit_to_tray_button.clicked.connect(on_exit)
         
         quit_program = QPushButton("Quit")
-        quit_program.clicked.connect(self.close)
+        quit_program.clicked.connect(on_exit)
 
         layout.addWidget(settings_label)
+        layout.addWidget(widget_schedule_time)
+        layout.addWidget(widget_download_path)
+        layout.addWidget(widget_debug)
+        layout.addWidget(widget_startup)
+        layout.addWidget(label_spotify_credentials)
+        layout.addWidget(widget_spotify_credentials)
         layout.addWidget(quit_to_tray_button)
         layout.addWidget(quit_program)
-
+        
         self.settings_tab.setLayout(layout)
         
+    # Switch/Input logic
+    def any_toggle(self, checked, section, option, DEBUG):
+        config = read_create_config()
+        config.set(section, option, str(checked))
+        if DEBUG: print(f"DEBUG: {section}: {option} set to {checked}")
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+
+    def dw_path_save(self, path, section, option, DEBUG):
+        userinput = self.show_error_message("question", f"Your files will be copied to the new download path: {path}\nThis will take some time and the files will NOT be verified.\nYou can also change this manually in your config.ini.\n\nAre you sure you want to continue?")
+            
+        if userinput == True: 
+            
+            if not path.endswith('/'):
+                path += '/'
+                
+            try:
+                if path != DOWNLOAD_PATH:
+                    shutil.copytree(DOWNLOAD_PATH, path, dirs_exist_ok=True)
+
+                config = ConfigParser()
+                config.read(CONFIG_FILE)
+                config.set(section, option, path)
+                
+                with open(CONFIG_FILE, 'w') as configfile:
+                    config.write(configfile)
+
+                if DEBUG:
+                    print(f"DEBUG: {section}: {option} set to {path}")
+                        
+                try:
+                    send2trash(path)
+                except Exception as e:
+                    self.show_error_message("critical", f"Error trashing old download path: {str(e)}\n\nnot deleting.")
+                    self.show_error_message("information", "Download path saved successfully! Please restart SpotiSync.")
+                    on_exit()
+            
+            except Exception as e:
+                self.show_error_message("critical", "Error copying files...")
+                
+        else:
+            self.show_error_message("information", "Cancelled")
+            
+    def schedule_time_save(self, time, section, option, DEBUG):
+        config = read_create_config()
+        config.set(section, option, time)
+        if DEBUG: print(f"DEBUG: {section}: {option} set to {time}")
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+    
 def read_create_config():
     """
     Reads or creates a configuration file.
@@ -655,14 +848,13 @@ def run_scheduler(DEBUG):
     schedule.every(SCHEDULE_TIME).minutes.do(fetch_user_lib_and_save_all, DEBUG)
 
     # Run at startup
-    # i'm adding these two lines for my sanity when testing
-    sleep(60)
+    if DEBUG: sleep(60)
     fetch_user_lib_and_save_all(DEBUG)
 
     while True:
       # Check for pending tasks every minute
-      schedule.run_pending()
       sleep(60)
+      schedule.run_pending()
       
 def search_artist(artist_name, DEBUG=False):
     
@@ -780,7 +972,10 @@ def on_click_tray():
 
 def on_exit():
     if DEBUG: print("DEBUG: Exiting")
-    os._exit(0)
+    try:
+        os._exit(0)
+    except:
+        raise RuntimeError
 
 def create_tray_icon():
     icon = pystray.Icon("SpotiSync")
@@ -788,7 +983,7 @@ def create_tray_icon():
     icon.title = "SpotiSync"
     icon.on_left_click = on_click_tray
     icon.menu = Menu(
-        MenuItem('Open GUI', print("NOT WORKING")), # TODO: fix this
+        MenuItem('Open GUI', print("NOT WORKING")), # TODO: fix this; For some reason this fires whenever you start the program
         MenuItem('Force Synchronization', force_trigger_sync_thread),
         MenuItem('Quit', on_exit)
     )
@@ -808,13 +1003,16 @@ if __name__ == "__main__":
     config = read_create_config()
 
     DOWNLOAD_PATH = config['settings']['download_path']
+    if not DOWNLOAD_PATH.endswith("/"):
+        DOWNLOAD_PATH += "/"
     DEBUG = config['settings']['debug'].lower() == 'true'
 
     if DEBUG: print(f"DEBUG: Download path: {DOWNLOAD_PATH}")
 
     # TODO: uncomment and pray
     create_tray_icon()
-    Thread(target=run_scheduler, args=(DEBUG,)).start()
+    scheduler = Thread(target=run_scheduler, args=(DEBUG,))
+    scheduler.start()
 
     STARTUP_WITH_GUI = os.getenv('STARTUP_WITH_GUI').lower() == 'true'
 
