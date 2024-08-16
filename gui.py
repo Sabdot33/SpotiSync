@@ -814,7 +814,7 @@ if __name__ == "__main__":
 
     # TODO: uncomment and pray
     create_tray_icon()
-    run_scheduler(DEBUG)
+    Thread(target=run_scheduler, args=(DEBUG,)).start()
 
     STARTUP_WITH_GUI = os.getenv('STARTUP_WITH_GUI').lower() == 'true'
 
