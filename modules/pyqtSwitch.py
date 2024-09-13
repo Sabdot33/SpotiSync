@@ -1,8 +1,9 @@
+
+# CREDIT: yjg30737 on github.com: https://github.com/yjg30737/pyqt-switch
+
 from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QPoint, QAbstractAnimation, QParallelAnimationGroup
 
 from PyQt5.QtWidgets import QWidget, QPushButton, QGridLayout, QHBoxLayout
-
-# CREDIT: yjg30737 on github.com: https://github.com/yjg30737/pyqt-switch
 
 class PyQtSwitch(QWidget):
     toggled = pyqtSignal(bool)
