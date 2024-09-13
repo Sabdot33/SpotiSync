@@ -2,6 +2,7 @@ from modules.spotipy import login_spotify
 from spotipy.oauth2 import SpotifyOAuth
 from PIL import Image
 from io import BytesIO
+import logging
 import zipfile
 import requests
 import os
@@ -37,7 +38,7 @@ def fetch_playlists(DEBUG=False):
         
         # save image in cache folder
         if os.path.exists(f"assets/cache/" + playlist["id"] + ".jpg"):
-            if DEBUG: print("Image already exists in cache")
+            logging.debug("Image already exists in cache")
             pass
         else:
             if images:

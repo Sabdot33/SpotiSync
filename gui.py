@@ -5,11 +5,12 @@ import json
 import requests
 import send2trash
 import logging
+import pystray
 from threading import Thread
 from PIL import Image
 from io import BytesIO
-from PyQt5.QtWidgets import QApplication, QListWidget, QMainWindow, QHBoxLayout, QTabWidget, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QScrollArea, QTextEdit
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QComboBox, QListWidget, QMainWindow, QHBoxLayout, QTabWidget, QWidget, QVBoxLayout, QLineEdit, QLabel, QPushButton, QScrollArea, QTextEdit
+from PyQt5.QtGui import QPixmap, QIcon
 from PyQt5.QtCore import Qt
 from modules.pyqtSwitch import PyQtSwitch
 from modules.playlists import fetch_playlists, download_all_playlists, download_playlist
@@ -17,17 +18,42 @@ from modules.artists import download_artist, search_artist
 from modules.config import read_create_config
 from modules.favorites import fetch_user_lib_and_save_all
 from modules.scheduler import run_scheduler
+from modules.popups import show_error_message, enter_value_and_return
+from modules.spotipy import fetch_user_lib
 
 # Hardcoded values
+
 CONFIG_FILE = "config.ini"
+app = QApplication(sys.argv)
+
+config = read_create_config()
+
+# Stylesheet loading
+
+stylesheet = "styles/" + config.get('settings', 'style')
+
+if not os.path.exists(stylesheet):
+    logging.warning(f"Style {stylesheet} not found. Using default stylesheet and resetting config.")
+    stylesheet = "styles/Dark.qss"
+    config.set('settings', 'style', 'Dark.qss')
+
+with open(stylesheet, 'r') as f:
+    stylesheet = f.read()
+app.setStyleSheet(stylesheet)
 
 # Configuration loading
-config = read_create_config()
+
+DEBUG = config['settings']['debug'].lower() == 'true'
 
 DOWNLOAD_PATH = config['settings']['download_path']
 if not DOWNLOAD_PATH.endswith("/"):
     DOWNLOAD_PATH += "/"
-DEBUG = config['settings']['debug'].lower() == 'true'
+if not os.path.exists(DOWNLOAD_PATH):
+    if show_error_message("question", "Download path does not exist. Do you want to create it?"):
+        os.makedirs(DOWNLOAD_PATH)
+if not os.access(DOWNLOAD_PATH, os.W_OK):
+    show_error_message("critical", "Download path is not writable. Please check your permissions and try again.")
+    sys.exit(1)
     
 STARTUP_WITH_GUI = config['settings']['startup_with_gui']
 
@@ -43,6 +69,9 @@ class MainWindow(QMainWindow):
 
         self.tab_widget = QTabWidget()
         self.setCentralWidget(self.tab_widget)
+
+        self.default_playlist_pixmap = QPixmap("assets/playlist.png").scaled(128, 128, Qt.KeepAspectRatio)
+        self.checkmark_pixmap = QPixmap("assets/checkmark.png")
 
         self.create_tabs()
 
@@ -68,6 +97,19 @@ class MainWindow(QMainWindow):
 
     # Synchronization Tab
     def create_synchronization_tab(self):
+    
+        # TODO: OPTIMIZE ME AS FUCK
+        def get_downloaded_amount():
+            fetch_user_lib()
+            a = len(os.listdir(DOWNLOAD_PATH))
+            with open('song_data.json', 'r') as f:
+                playlist_data = json.load(f)
+            b = len(playlist_data)
+            
+            amount = str(a) + "/" + str(b)
+            
+            return amount
+            
         layout = QVBoxLayout()
         
         intro_label = QLabel("Welcome to SpotiSync!")
@@ -78,6 +120,14 @@ class MainWindow(QMainWindow):
 
         features_label = QLabel("Features")
         features_label.setStyleSheet("font-size: 24pt; font-weight: bold;")
+
+        downloaded_label = QLabel("Downloaded Songs:")
+        downloaded_label.setStyleSheet("font-size: 18pt; font-weight: bold;")
+        downloaded_label.setAlignment(Qt.AlignCenter)
+        
+        downloaded_amount = QLabel(get_downloaded_amount())
+        downloaded_amount.setStyleSheet("font-size: 18pt;")
+        downloaded_amount.setAlignment(Qt.AlignCenter)
 
         features_list = QListWidget()
         features_list.addItems([
@@ -95,6 +145,8 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(intro_label)
         layout.addWidget(intro_desc)
+        layout.addWidget(downloaded_label) 
+        layout.addWidget(downloaded_amount)
         layout.addWidget(features_label)
         layout.addWidget(features_list)
         layout.addWidget(sync_button)
@@ -127,7 +179,9 @@ class MainWindow(QMainWindow):
         playlist_layout = QVBoxLayout()
 
         def update_playlists_tab(DEBUG=False):
-            fetch_playlists(DEBUG)
+            
+            fetching = Thread(target=fetch_playlists, args=(DEBUG,))
+            fetching.start()
 
             # Loop over the layout's widgets and remove them
             while playlist_layout.count():
@@ -136,6 +190,8 @@ class MainWindow(QMainWindow):
                 if widget is not None:
                     widget.deleteLater()
             
+            fetching.join()
+            
             with open ('playlist_data.json', 'r') as pld:
                 playlist_data = json.load(pld)
                 
@@ -143,14 +199,14 @@ class MainWindow(QMainWindow):
                 playlist_name = playlist['name']
                 playlist_id = playlist['id']
                 
-                if DEBUG: print(f"IMG ID {playlist_id}")
+                logging.debug(f"IMG ID {playlist_id}")
     
                 Hlayout = QHBoxLayout()
 
                 if os.path.exists(f"assets/cache/" + playlist_id + ".jpg"):
                     pixmap = QPixmap(f"assets/cache/" + playlist_id + ".jpg")
                 else:
-                    pixmap = QPixmap("assets/playlist.png").scaled(128, 128, Qt.KeepAspectRatio)
+                    pixmap = self.default_playlist_pixmap
                 
                 playlist_image_label = QLabel()
                 playlist_image_label.setPixmap(pixmap)
@@ -162,18 +218,16 @@ class MainWindow(QMainWindow):
                 # so pass it through and use the second argument for the playlist ID.
                 playlist_button = QPushButton("Download")
                 playlist_button.clicked.connect(
-                    lambda 
+                    lambda
                     playlist_name=playlist_name,
                     playlist_id=playlist_id,
                     path=DOWNLOAD_PATH,
                     DEBUG=DEBUG:
                     Thread(target=download_playlist, args=(playlist_id, path, DEBUG)).start())
                 
-                is_downloaded = os.path.exists(DOWNLOAD_PATH + playlist_name + "/")
-                
                 is_downloaded_label = QLabel()
-                if is_downloaded:
-                    is_downloaded_label.setPixmap(QPixmap("assets/checkmark.png"))
+                if os.path.exists(DOWNLOAD_PATH + playlist_name + "/"):
+                    is_downloaded_label.setPixmap(self.checkmark_pixmap)
                     playlist_button.setText("Update")
 
                 Hlayout.addWidget(playlist_image_label)
@@ -325,7 +379,6 @@ class MainWindow(QMainWindow):
 
         logs_text = QTextEdit("")
         logs_text.setReadOnly(True)
-        logs_text.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px; font-family: monospace")
 
         layout.addWidget(logs_label)
         layout.addWidget(logs_desc)
@@ -342,7 +395,7 @@ class MainWindow(QMainWindow):
         settings_label.setStyleSheet("font-size: 20pt;")
         
         # Spotify API Credentials - READ ONLY
-        label_spotify_credentials = QLabel("Spotify Credentials - These are you API Credentials you got from Spotify")
+        label_spotify_credentials = QLabel("Spotify Credentials - These are your API Credentials you got from Spotify")
         label_spotify_credentials.setStyleSheet("font-size: 12pt;")
         
         label1 = QLabel("Client ID")
@@ -399,13 +452,43 @@ class MainWindow(QMainWindow):
         widget_schedule_time = QWidget()
         widget_schedule_time.setLayout(layout_schedule_time)
         
+        # Style
+        def get_styles():
+            styles = []
+            for file in os.listdir("styles"):
+                if file.endswith(".qss"):
+                    styles.append(file[:-4])
+            return styles
+        
+        def set_style(style):
+            filename = f"{style}.qss"
+            config = read_create_config()
+            config.set('settings', 'style', filename)
+            with open(CONFIG_FILE, 'w') as configfile:
+                config.write(configfile)
+            app.setStyleSheet(open(f"styles/{filename}").read())
+        
+        layout_style = QVBoxLayout()
+        label_style = QLabel("Style - The style of the GUI")
+        
+        style = read_create_config().get('settings', 'style')
+        style = style.split(".")[0]
+        style_box = QComboBox()
+        style_box.addItems(get_styles())
+        style_box.setCurrentText(style)
+        style_box.currentTextChanged.connect(lambda: set_style(style_box.currentText()))
+        
+        layout_style.addWidget(label_style)
+        layout_style.addWidget(style_box)
+        widget_style = QWidget()
+        widget_style.setLayout(layout_style)
+        
         # Download Path
         layout_download_path = QVBoxLayout()
         label_download_path = QLabel("Download Path - Root Path of where the songs will be downloaded.")
         
         download_path = read_create_config().get('settings', 'download_path')
         download_path_box = QLineEdit(download_path)
-        download_path_box.setStyleSheet("background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
         download_path_box.returnPressed.connect(lambda: self.dw_path_save(download_path_box.text(), 'settings', 'download_path', DEBUG))
         
         download_path_save = QPushButton("Save")
@@ -459,6 +542,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(settings_label)
         layout.addWidget(widget_schedule_time)
         layout.addWidget(widget_download_path)
+        layout.addWidget(widget_style)
         layout.addWidget(widget_debug)
         layout.addWidget(widget_startup)
         layout.addWidget(label_spotify_credentials)
@@ -539,15 +623,15 @@ class MainWindow(QMainWindow):
             config.write(configfile)
 
 def reset_window_size():
+    gui.resize(800, 600)
     logging.debug("Resetting window size")
 
 def quit_to_tray():
-    if os.name == 'posix':
-        if MainWindow.show_error_message("question", "Make sure the tray icon is working.") == True:
-            gui.hide()
-    else:
-        logging.debug("Quitting to tray")
-        gui.hide()
+    if os.name == 'posix' and show_error_message("question", "Make sure the tray icon is working.") != True:
+        return
+    logging.debug("Quitting to tray")
+    gui.hide()
+    return
     
 def get_logs():
     logging.debug("Getting logs")
@@ -565,6 +649,7 @@ def on_exit():
     
     for file in os.listdir():
         if file.endswith(".json"):
+            logging.debug(f"Removing {file}")
             os.remove(file)
             
     try:
@@ -573,7 +658,16 @@ def on_exit():
         raise RuntimeError
 
 def create_tray_icon():
-    pass
+    logging.debug("Creating tray icon")
+    tray = pystray.Icon(
+        "SpotiSync",
+        image=Image.open("./assets/sync_icon.png"),
+        menu=pystray.Menu(
+            pystray.MenuItem("Show", on_click_tray),
+            pystray.MenuItem("Exit", on_exit),
+        ),
+    )
+    tray.run_detached()
 
 def setup_logging(DEBUG: bool = False) -> None:
     """
@@ -591,16 +685,15 @@ def setup_logging(DEBUG: bool = False) -> None:
 
 if __name__ == "__main__":
         
-    app = QApplication(sys.argv)
     gui = MainWindow()
 
     # TODO: uncomment and pray
     create_tray_icon()
     scheduler = Thread(target=run_scheduler, args=(DEBUG,))
     scheduler.start()
-
-
-    gui.show()
-    if STARTUP_WITH_GUI == False:
+    
+    if STARTUP_WITH_GUI == "True":
+        gui.show()
+    else:
         gui.hide()
-    sys.exit(app.exec_())
+    app.exec()

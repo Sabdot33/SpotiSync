@@ -1,4 +1,4 @@
-from modules.spotipy import login_spotify
+from modules.spotipy import fetch_user_lib
 from modules.download import download_and_save_mp3
 from modules.config import read_create_config
 from time import localtime, strftime
@@ -22,31 +22,8 @@ def fetch_user_lib_and_save_all(DEBUG=False):
     DW_PATH = config['settings']['download_path'] + "Favorites/"
     config = None
     
-    sp = login_spotify(DEBUG)
-
-    results = sp.current_user_saved_tracks(limit=50)
-    tracks = results['items']
-
-    while results['next']:
-        results = sp.next(results)
-        tracks.extend(results['items'])
-
-    # Extract song names and URLs (oldest first)
-    song_data = []
-    tracks = tracks[::-1]
-    for item in tracks:
-        track = item['track']
-        song_data.append({
-            'name': track['name'],
-            'url': track['external_urls']['spotify'],
-            'id': track['id']
-        })
-
-    with open('song_data.json', 'w') as f:
-        json.dump(song_data, f, indent=4)
-
-    if DEBUG: print("DEBUG: Song data extracted and saved to song_data.json")
-
+    fetch_user_lib(DEBUG)
+    
     with open('song_data.json', 'r') as f:
         data = json.load(f)
 
