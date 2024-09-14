@@ -100,13 +100,21 @@ class MainWindow(QMainWindow):
     
         # TODO: OPTIMIZE ME AS FUCK
         def get_downloaded_amount():
-            fetch_user_lib()
-            a = len(os.listdir(DOWNLOAD_PATH))
-            with open('song_data.json', 'r') as f:
-                playlist_data = json.load(f)
+            try:
+                a = len(os.listdir(f"{DOWNLOAD_PATH}Favorites/"))
+            except FileNotFoundError:
+                a = 0
+            try:
+                with open('song_data.json', 'r') as f:
+                    playlist_data = json.load(f)
+            except FileNotFoundError:
+                playlist_data = []
             b = len(playlist_data)
             
             amount = str(a) + "/" + str(b)
+            
+            if a == 0 and b == 0:
+                amount = "N/A"
             
             return amount
             
@@ -648,7 +656,7 @@ def on_exit():
     logging.debug("Exiting")
     
     for file in os.listdir():
-        if file.endswith(".json"):
+        if file.endswith(".json") and file != "song_data.json":
             logging.debug(f"Removing {file}")
             os.remove(file)
             

@@ -21,7 +21,7 @@ def login_spotify(DEBUG=False):
     
     return sp
 
-def fetch_user_lib():
+def fetch_user_lib(DEBUG):
     """
     Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
 

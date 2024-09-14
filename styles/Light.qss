@@ -6,7 +6,7 @@
 }
 
 QPushButton {
-    background-color: #7e57c2;
+    background-color: #745ba0;
     color: white;
     border: none;
     padding: 5px 10px;
@@ -15,10 +15,11 @@ QPushButton {
 }
 
 QPushButton:hover {
-    background-color: #9575cd;
+    background-color: #8064af;
 }
 
 QListWidget {
+    font-family: monospace;
     background-color: #ffffff;
     font-size: 14px;
     margin: auto;
@@ -26,6 +27,7 @@ QListWidget {
 }
 
 QTextEdit, QLineEdit {
+    font-family: monospace;
     background-color: #ffffff; 
     color: #333333; 
     border: 1px solid #cccccc;
