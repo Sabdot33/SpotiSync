@@ -12,11 +12,11 @@ def show_error_message(type, error_message):
     Args:
         type (str): The type of message box to display. Can be "critical", "information", or "question".
         error_message (str): The message to display in the message box.
-        
+
     Returns:
-        None 
+        None
         bool: True if the user clicked the "Yes" button, False if the user clicked the "No" button.
-        
+
     Raises:
         ValueError: If the specified type is not "critical", "information", or "question".
     """

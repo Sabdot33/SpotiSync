@@ -1,7 +1,7 @@
 import os
 from configparser import ConfigParser
 
-from ..gui.popups import *
+from ..gui.popups import show_error_message, enter_value_and_return
 
 CONFIG_FILE = "config.ini"
 

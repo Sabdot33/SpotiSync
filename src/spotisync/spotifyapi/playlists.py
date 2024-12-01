@@ -51,7 +51,7 @@ def fetch_playlists(debug=False):
                 if not os.path.exists(os.path.join("cache")):
                     os.makedirs(os.path.join("cache"))
                 pi_limage.save(os.path.join("cache", playlist["spoti_id"] + "jpg"))
-                if debug: print("Image saved in cache")
+                logging.debug("Image saved in cache")
 
         if images:
             playlist_data.append({
@@ -72,15 +72,15 @@ def fetch_playlists(debug=False):
         json.dump(playlist_data, f, indent=4)
 
 
-def download_playlist(playlist_id, path=os.getenv('DOWNLOAD_PATH_MUSIC'), DEBUG=False):
+def download_playlist(playlist_id, path=os.getenv('DOWNLOAD_PATH_MUSIC'), debug=False):
     # get playlist name with ID:
-    def get_playlist_name(playlist_id, DEBUG):
-        sp = login_spotify(DEBUG)
+    def get_playlist_name(playlist_id, debug):
+        sp = login_spotify(debug)
         return sp.playlist(str(playlist_id))['name']
 
-    playlist_name = get_playlist_name(playlist_id, DEBUG)
+    playlist_name = get_playlist_name(playlist_id, debug)
 
-    if DEBUG: print(f"debug: path: {path} playlist_id: {playlist_id} playlist_name: {playlist_name}")
+    logging.debug(f"debug: path: {path} playlist_id: {playlist_id} playlist_name: {playlist_name}")
 
     if not os.path.exists(path):
         os.makedirs(path)
@@ -90,7 +90,7 @@ def download_playlist(playlist_id, path=os.getenv('DOWNLOAD_PATH_MUSIC'), DEBUG=
     if os.path.exists(full_path):
         print("playlist already exists: " + full_path)
         print("Updating playlist")
-    if DEBUG: print("debug: Downloading playlist to " + full_path)
+    logging.debug("debug: Downloading playlist to " + full_path)
 
     url = f"https://yank.g3v.co.uk/playlist/{playlist_id}"
     hasfailed = False
@@ -113,23 +113,23 @@ def download_playlist(playlist_id, path=os.getenv('DOWNLOAD_PATH_MUSIC'), DEBUG=
 
     # unzip temp.zip to DW_PATH + playlist_name
     if not hasfailed:
-        if DEBUG: print("debug: Unzipping playlist")
+        logging.debug("debug: Unzipping playlist")
         with zipfile.ZipFile("temp.zip", 'r') as zip_ref:
             zip_ref.extractall(full_path)
 
     # remove temp.zip
-    if DEBUG: print("debug: Removing temp.zip")
+    logging.debug("debug: Removing temp.zip")
     os.remove("temp.zip")
-    if DEBUG: print("debug: Playlist downloaded to " + full_path)
+    logging.debug("debug: Playlist downloaded to " + full_path)
 
 
-def download_all_playlists(path, DEBUG=False):
+def download_all_playlists(path, debug=False):
     """
     Downloads all playlists from a JSON file containing playlist data.
 
     Args:
         path (str): The path where the playlists will be downloaded.
-        DEBUG (bool, optional): If True, prints debug information. Defaults to False.
+        debug (bool, optional): If True, prints debug information. Defaults to False.
 
     Returns:
         None
@@ -145,7 +145,7 @@ def download_all_playlists(path, DEBUG=False):
 
     if not os.path.exists(path):
         os.makedirs(path)
-        if DEBUG: print("debug: Created download path " + path)
+        logging.debug("debug: Created download path " + path)
 
     with open('playlist_data.json', 'r') as f:
         playlist_data = json.load(f)
@@ -154,6 +154,6 @@ def download_all_playlists(path, DEBUG=False):
         playlist_id = playlist['spoti_id']
         playlist_name = playlist['name']
         try:
-            download_playlist(playlist_id, path + playlist_name + "/", DEBUG)
+            download_playlist(playlist_id, path + playlist_name + "/", debug)
         except Exception as e:
-            print(f"Error downloading playlist {playlist_name}: {e}")
+            logging.error(f"Error downloading playlist {playlist_name}: {e}")

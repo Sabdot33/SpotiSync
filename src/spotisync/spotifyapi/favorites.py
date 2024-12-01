@@ -12,10 +12,10 @@ def fetch_user_lib_and_save_all(debug=False):
     """
     Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
     Then, it downloads the audio files for each song and saves them to a specified path.
-    
+
     Args:
         debug (bool, optional): If True, prints debug information. Defaults to False.
-    
+
     Returns:
         bool: True if all songs were downloaded successfully, False otherwise.
     """
@@ -55,9 +55,11 @@ def fetch_user_lib_and_save_all(debug=False):
         if len(failed_items) > 0:
             logging.error(f"Failed to download {len(failed_items)} items")
             log.write(
-                f"Failed to download {len(failed_items)} items:\n\nSong Name:  Error                                                                                      This log is from " + strftime(
+                f"Failed to download {len(failed_items)} items:\n\nSong Name:  Error                                "
+                f"                                                      This log is from " + strftime(
                     "%Y-%m-%d %H:%M:%S",
-                    localtime()) + "\n-------------------------------------------------------------------------------------------------------------------------------------------\n")
+                    localtime()) + "\n--------------------------------------------------------------------------"
+                                   "-----------------------------------------------------------------\n")
             # ^First 4 lines of errors.log^
             for item in failed_items:
                 try:
@@ -65,7 +67,8 @@ def fetch_user_lib_and_save_all(debug=False):
                     log.write(f"- {item}\n")
                 except Exception as e:
                     log.write(
-                        f"Cloud not log error; python raised an exception: {e}\nSee https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
+                        f"Cloud not log error; python raised an exception: {e}\nSee "
+                        f"https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
             logging.debug("Logged errors to errors.log")
         else:
             print("All songs downloaded successfully! Enjoy :3")

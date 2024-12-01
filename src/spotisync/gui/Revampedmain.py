@@ -12,7 +12,7 @@ from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QListWidget, QMainWindow, QTabWidget, \
     QVBoxLayout, QLabel, QScrollArea, QLineEdit, QWidget, QPushButton, QHBoxLayout
 import logging
-from logging.handlers import RotatingFileHandler
+from logging.handlers import RotatingFileHandler as RotatingFileHandler
 
 from .popups import show_error_message
 from ..core.config import read_create_config
@@ -37,7 +37,7 @@ def set_up_logging() -> logging.root:
     except FileExistsError:
         logging.debug("log file already exists")
     # Create file handler
-    file_handler = logging.handlers.RotatingFileHandler("../SpotiSync.log", maxBytes=MAX_LOG_SIZE)
+    file_handler = RotatingFileHandler("../SpotiSync.log", maxBytes=MAX_LOG_SIZE)
     file_handler.setLevel(logging.DEBUG)
 
     # Create console handler
@@ -230,7 +230,8 @@ class MainWindow(QMainWindow, ):
         top_label.setStyleSheet("font-size: 20pt;")
 
         top_desc = QLabel(
-            "Download all playlists or choose one to download; \nThis Menu will not change its appearance \nbut the playlists will be downloaded to your Downloads folder")
+            "Download all playlists or choose one to download; \nThis Menu will not change its appearance "
+            "\nbut the playlists will be downloaded to your Downloads folder")
         top_desc.setWordWrap(True)
 
         refresh_button = QPushButton("Refresh")

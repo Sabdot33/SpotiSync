@@ -42,7 +42,7 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
         if not skip:
             raise FileExistsError("File already exists: " + full_path)
         else:
-            if debug: print(f"debug: File already exists: {full_path}")
+            logging.debug(f"debug: File already exists: {full_path}")
             hasfailed = True
 
     try:
@@ -50,14 +50,14 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
         response.raise_for_status()  # Raise an exception for non-200 status codes
     except requests.exceptions.RequestException as e:
         if skip:
-            if debug: print(f"debug: Error downloading audio: {e}")
+            logging.debug(f"debug: Error downloading audio: {e}")
             hasfailed = True
         else:
             raise ValueError(f"Error downloading audio: {e}")
     # Check content type before saving
     if response.headers.get('content-type', '').lower() != 'audio/mpeg':
         if skip:
-            if debug: print("debug: Downloaded content is not an MP3 file.")
+            logging.debug("debug: Downloaded content is not an MP3 file.")
             hasfailed = True
         else:
             raise ValueError("Downloaded content is not an MP3 file.")
@@ -67,7 +67,7 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
         for chunk in response.iter_content(1024):
             if chunk:  # filter out keep-alive new chunks
                 f.write(chunk)
-    if debug: print(f"debug: Audio downloaded and saved as: {filename}")
+    logging.debug(f"debug: Audio downloaded and saved as: {filename}")
 
     return hasfailed
 

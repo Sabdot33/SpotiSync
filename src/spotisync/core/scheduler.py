@@ -6,17 +6,18 @@ from modules.config import read_create_config
 from modules.favorites import fetch_user_lib_and_save_all
 
 
-def run_scheduler(DEBUG):
+def run_scheduler(debug):
     config = read_create_config()
-    SCHEDULE_TIME = int(config['settings']['schedule_time'])
+    schedule_time: int = int(config['settings']['schedule_time'])
     config = None
 
-    schedule.every(SCHEDULE_TIME).minutes.do(fetch_user_lib_and_save_all, DEBUG)
+    schedule.every(schedule_time).minutes.do(fetch_user_lib_and_save_all, debug)
 
-    logging.debug(f"Schedule time: {SCHEDULE_TIME}")
+    logging.debug(f"Schedule time: {schedule_time}")
 
-    if DEBUG: sleep(60)
-    fetch_user_lib_and_save_all(DEBUG)
+    if debug:
+        sleep(60)
+    fetch_user_lib_and_save_all(debug)
 
     while True:
         # Check for pending tasks every minute
