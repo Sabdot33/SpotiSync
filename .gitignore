@@ -12,3 +12,6 @@ bin
 *temp*
 requirements_*
 config*.ini
+.coverage
+mydata
+spotisync.egg-info
