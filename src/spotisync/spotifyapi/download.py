@@ -5,11 +5,10 @@ from typing import LiteralString
 import requests
 
 
-def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | str = ".", skip=False, debug=False):
+def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | str = ".", skip=False):
     """Downloads the audio from the given ID and saves it as an MP3 file to the specified path.
 
     Args:
-        debug (bool): Debug flag
         spoti_id (str): The Spotify ID of the track.
         filename (str, optional): The desired filename for the saved MP3. Defaults to "audio.mp3".
         path (str, optional): The path where the file should be saved. Defaults to the current directory (".).
@@ -62,7 +61,6 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
         else:
             raise ValueError("Downloaded content is not an MP3 file.")
 
-    # Save the file
     with open(full_path, "wb") as f:
         for chunk in response.iter_content(1024):
             if chunk:  # filter out keep-alive new chunks
