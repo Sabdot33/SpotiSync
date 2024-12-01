@@ -4,6 +4,7 @@
 .env
 *.json
 downloads/*
+oldstuff/OLD/gui.py.old
 *.log
 *.soon
 bin
