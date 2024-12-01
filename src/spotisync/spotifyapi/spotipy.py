@@ -1,11 +1,13 @@
-from modules.config import read_create_config
-from spotipy.oauth2 import SpotifyOAuth
-import spotipy
-import logging
 import json
+import logging
 
-def login_spotify(DEBUG=False):
-    
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+
+from src.spotisync.core.config import read_create_config
+
+
+def login_spotify():
     config = read_create_config()
 
     # Create Spotify object
@@ -15,13 +17,13 @@ def login_spotify(DEBUG=False):
             client_id=config.get('spotipy', 'client_id'),
             client_secret=config.get('spotipy', 'client_secret'),
             redirect_uri=config.get('spotipy', 'redirect_uri')
-            )
         )
-    
-    
+    )
+
     return sp
 
-def fetch_user_lib(DEBUG):
+
+def fetch_user_lib():
     """
     Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
 
@@ -29,7 +31,7 @@ def fetch_user_lib(DEBUG):
         None
     """
     sp = login_spotify()
-    
+
     results = sp.current_user_saved_tracks(limit=50)
     tracks = results['items']
 
@@ -45,9 +47,9 @@ def fetch_user_lib(DEBUG):
         song_data.append({
             'name': track['name'],
             'url': track['external_urls']['spotify'],
-            'id': track['id']
+            'spoti_id': track['spoti_id']
         })
-        
+
     json.dump(song_data, open('song_data.json', 'w'), indent=4)
-    
-    logging.debug("DEBUG: Song data extracted and saved to song_data.json")
+
+    logging.debug("debug: Song data extracted and saved to song_data.json")
