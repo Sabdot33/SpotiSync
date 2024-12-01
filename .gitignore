@@ -10,7 +10,6 @@ oldstuff
 bin
 *build*
 *temp*
-requirements_*
 config*.ini
 .coverage
 mydata
