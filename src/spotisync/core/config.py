@@ -1,3 +1,4 @@
+import configparser
 import os
 from configparser import ConfigParser
 
@@ -13,7 +14,7 @@ def check_for_blanks():
     pass
 
 
-def read_create_config():
+def read_create_config() -> configparser.ConfigParser:
     """
     Reads or creates a configuration file.
 
@@ -26,13 +27,14 @@ def read_create_config():
     check_for_blanks()
 
     config = ConfigParser()
+
     if os.path.exists(CONFIG_FILE):
         try:
             config.read(CONFIG_FILE)
             return config
         except Exception as e:
             print(f"Error reading config file: {e}")
-            show_error_message("An error occured while reading your config.ini file:\n\n" + str(e))
+            show_error_message("critical", "An error occured while reading your config.ini file:\n\n" + str(e))
             raise e
     else:
         pass
@@ -48,6 +50,7 @@ def read_create_config():
         config.set('settings', 'schedule_time',
                    enter_value_and_return("Enter the time in minutes betweem synchronizations"))
         config.set('settings', 'style', 'default')
+
         with open(CONFIG_FILE, 'w') as configfile:
             config.write(configfile)
         return config

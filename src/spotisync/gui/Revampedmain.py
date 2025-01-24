@@ -1,7 +1,13 @@
 import json
+import logging
 import os
+import shutil
 import sys
+
+import PIL.Image
+import send2trash
 from io import BytesIO
+from logging.handlers import RotatingFileHandler as RotatingFileHandler
 from threading import Thread
 
 import pystray
@@ -10,20 +16,19 @@ from PIL import Image
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QApplication, QListWidget, QMainWindow, QTabWidget, \
-    QVBoxLayout, QLabel, QScrollArea, QLineEdit, QWidget, QPushButton, QHBoxLayout
-import logging
-from logging.handlers import RotatingFileHandler as RotatingFileHandler
+    QVBoxLayout, QLabel, QScrollArea, QLineEdit, QWidget, QPushButton, QHBoxLayout, QTextEdit, QComboBox
 
 from .popups import show_error_message
-from ..core.config import read_create_config
+from ..core.config import read_create_config, CONFIG_FILE
 from ..spotifyapi.artists import search_artist, download_artist
 from ..spotifyapi.favorites import fetch_user_lib_and_save_all
 from ..spotifyapi.playlists import download_all_playlists, fetch_playlists, download_playlist
+from ..gui.pyqtSwitch import PyQtSwitch
 
-WINDOW_WIDTH = 400
-WINDOW_HEIGHT = 600
+WINDOW_WIDTH: int = 400
+WINDOW_HEIGHT: int = 600
 
-MAX_LOG_SIZE = 1024 * 1024 * 1
+MAX_LOG_SIZE: int = 1024 * 1024 * 1
 
 
 def set_up_logging() -> logging.root:
@@ -31,13 +36,7 @@ def set_up_logging() -> logging.root:
     # TODO: Load logging level from config
     log_handler.setLevel(logging.DEBUG)
 
-    try:
-        with open("../SpotiSync.log", 'x') as f:
-            f.write("")
-    except FileExistsError:
-        logging.debug("log file already exists")
-    # Create file handler
-    file_handler = RotatingFileHandler("../SpotiSync.log", maxBytes=MAX_LOG_SIZE)
+    file_handler = RotatingFileHandler("SpotiSync.log", maxBytes=MAX_LOG_SIZE)
     file_handler.setLevel(logging.DEBUG)
 
     # Create console handler
@@ -61,7 +60,7 @@ logger = set_up_logging()
 
 class TrayManager:
     def __init__(self):
-        self.icon = None
+        self.icon: pystray.Icon = None
 
     def create_tray_icon(self) -> pystray.Icon:
         logging.debug("Creating tray icon")
@@ -107,8 +106,8 @@ class MainWindow(QMainWindow, ):
         self.tab_widget = QTabWidget()
         self.setCentralWidget(self.tab_widget)
 
-        self.default_playlist_pixmap = QPixmap("../assets/playlist.png").scaled(128, 128, Qt.KeepAspectRatio)
-        self.checkmark_pixmap = QPixmap("../assets/checkmark.png")
+        self.default_playlist_pixmap = QPixmap(os.path.join("spotisync", "assets", "playlist.png")).scaled(128, 128, Qt.KeepAspectRatio)
+        self.checkmark_pixmap = QPixmap(os.path.join("spotisync", "assets", "checkmark.png"))
 
         self.load_config()
         self.create_tabs()
@@ -150,8 +149,8 @@ class MainWindow(QMainWindow, ):
         self.create_synchronization_tab()
         self.create_playlists_tab()
         self.create_artists_tab()
-        # self.create_logs_tab()
-        # self.create_settings_tab()
+        self.create_logs_tab()
+        self.create_settings_tab()
 
     def create_synchronization_tab(self):
 
@@ -159,7 +158,7 @@ class MainWindow(QMainWindow, ):
         def get_downloaded_amount() -> str:
 
             try:
-                actually = len(os.listdir(f"{self.PATH}Favorites\\"))
+                actually = len(os.listdir(os.path.join(self.PATH, "Favorites")))
             except FileNotFoundError:
                 actually = 0
             try:
@@ -220,11 +219,10 @@ class MainWindow(QMainWindow, ):
 
         self.synchronization_tab.setLayout(layout)
 
-    # Playlists Tab
     def create_playlists_tab(self):
         layout = QVBoxLayout()
 
-        self.tab_widget.currentChanged.connect(lambda index: update_playlists_tab(self.DEBUG) if index == 1 else None)
+        self.tab_widget.currentChanged.connect(lambda index: update_playlists_tab() if index == 1 else None)
 
         top_label = QLabel("Playlists - Choose a playlist to download")
         top_label.setStyleSheet("font-size: 20pt;")
@@ -235,11 +233,11 @@ class MainWindow(QMainWindow, ):
         top_desc.setWordWrap(True)
 
         refresh_button = QPushButton("Refresh")
-        refresh_button.clicked.connect(lambda: update_playlists_tab(self.DEBUG))
+        refresh_button.clicked.connect(lambda: update_playlists_tab())
 
         download_all_button = QPushButton("Download all playlists")
         download_all_button.clicked.connect(
-            lambda: Thread(target=download_all_playlists, args=(self.PATH, self.DEBUG)).start)
+            lambda: Thread(target=download_all_playlists, args=(self.PATH, self.DEBUG)).start())
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -247,11 +245,11 @@ class MainWindow(QMainWindow, ):
         playlist_widget = QWidget()
         playlist_layout = QVBoxLayout()
 
-        def update_playlists_tab(debug=False):
+        def update_playlists_tab():
 
             path = self.PATH
 
-            fetching = Thread(target=fetch_playlists, args=(debug,))
+            fetching = Thread(target=fetch_playlists)
             fetching.start()
 
             # Loop over the layout's widgets and remove them
@@ -263,22 +261,23 @@ class MainWindow(QMainWindow, ):
 
             fetching.join()
 
-            with open('../../playlist_data.json', 'r') as pld:
+            with open(os.path.join("playlist_data.json"), 'r') as pld:
                 playlist_data = json.load(pld)
 
             for playlist in playlist_data:
                 playlist_name = playlist['name']
-                playlist_id = playlist['spoti_id']
+                playlist_id: str = playlist['id']
 
                 logging.debug(f"IMG ID {playlist_id}")
 
                 hlayout = QHBoxLayout()
 
-                with os.path.join("spotisync", "assets", "cache", playlist_id + ".jpg") as cache_path:
-                    if os.path.exists(cache_path):
-                        pixmap = QPixmap(cache_path)
-                    else:
-                        pixmap = self.default_playlist_pixmap
+                cache_path = os.path.join("cache", playlist_id + ".jpg")
+
+                if os.path.exists(cache_path):
+                    pixmap = QPixmap(cache_path)
+                else:
+                    pixmap = self.default_playlist_pixmap
 
                 playlist_image_label = QLabel()
                 playlist_image_label.setPixmap(pixmap)
@@ -286,12 +285,13 @@ class MainWindow(QMainWindow, ):
                 playlist_label = QLabel(playlist_name)
                 playlist_label.setWordWrap(True)
 
-                # The first argument of the lambda function is always False, no matter it's type or value,
+                # The first argument of the lambda function is always False, no matter it's msg_type or value,
                 # so pass it through and use the second argument for the playlist ID.
                 playlist_button = QPushButton("Download")
+                playlist_button.setToolTip(playlist_id)
                 playlist_button.clicked.connect(
-                    lambda:
-                    Thread(target=download_playlist, args=(playlist_id, path, debug)).start())
+                    lambda checked, btn = playlist_button:
+                    Thread(target=download_playlist, args=(btn.toolTip(), path)).start())
 
                 is_downloaded_label = QLabel()
                 if os.path.exists(os.path.join(path, playlist_name)):
@@ -319,7 +319,6 @@ class MainWindow(QMainWindow, ):
 
         self.playlists_tab.setLayout(layout)
 
-    # Artists Tab
     def create_artists_tab(self):
         layout = QVBoxLayout()
 
@@ -330,11 +329,11 @@ class MainWindow(QMainWindow, ):
         artists_desc.setWordWrap(True)
 
         search_bar = QLineEdit()
-        search_bar.returnPressed.connect(lambda: search_artist_and_display(search_bar.text(), self.DEBUG))
+        search_bar.returnPressed.connect(lambda: search_artist_and_display(self.PATH, search_bar.text()))
 
         search_button = QPushButton("Search")
         search_button.setStyleSheet("width: 100px;")
-        search_button.clicked.connect(lambda: search_artist_and_display(search_bar.text(), self.DEBUG))
+        search_button.clicked.connect(lambda: search_artist_and_display(self.PATH, search_bar.text()))
 
         search_layout = QHBoxLayout()
         search_layout.addWidget(search_bar)
@@ -346,7 +345,10 @@ class MainWindow(QMainWindow, ):
         artist_widget = QWidget()
         artist_layout = QVBoxLayout()
 
-        def search_artist_and_display(query, debug=False):
+        def search_artist_and_display(base_path: str, query: str):
+
+            if query == "":
+                return 0
 
             # Loop over the layout's widgets and remove them
             while artist_layout.count():
@@ -355,15 +357,15 @@ class MainWindow(QMainWindow, ):
                 if widget is not None:
                     widget.deleteLater()
 
-            logging.debug(f"debug: Searching for artist {query}")
-            search_artist(query, debug=debug)
-            with open("../../artist_data.json", "r") as f:
+            logging.debug(f"Searching for artist {query}")
+            search_artist(query)
+            with open(os.path.join("artist_data.json"), "r") as f:
                 artist_data = json.load(f)
 
             for artist in artist_data:
                 artist_name = artist['name']
                 artist_image = artist['image']
-                artist_id = artist['spoti_id']
+                artist_id = artist['id']
 
                 response = requests.get(artist_image, stream=True, timeout=1)
                 response.raise_for_status()
@@ -372,7 +374,7 @@ class MainWindow(QMainWindow, ):
                     image_data += chunk
                 pi_limage = Image.open(BytesIO(image_data))
                 artist_image = pi_limage.resize((128, 128))
-                logging.debug(f"debug: Artist image downloaded for {artist_name}")
+                logging.debug(f"Artist image downloaded for {artist_name}")
 
                 # Convert PIL Image to bytes buffer
                 buffer = BytesIO()
@@ -392,12 +394,14 @@ class MainWindow(QMainWindow, ):
                 label.setStyleSheet("font-size: 20pt; text-align: center;")
 
                 artist_button = QPushButton(text="Download")
+                artist_button.setToolTip(artist_id)
+
                 artist_button.clicked.connect(
-                    lambda:
-                    Thread(target=download_artist, args=(artist_id, self.path, self.DEBUG)).start())
+                    lambda checked, btn = artist_button:
+                    Thread(target=download_artist, args=(btn.toolTip(), base_path)).start())
 
                 # Check if the artist has already been downloaded
-                is_downloaded = os.path.exists(os.path.join(self.path, "Artists/", artist_name))
+                is_downloaded = os.path.exists(os.path.join(base_path, "Artists", artist_name))
 
                 is_downloaded_label = QLabel("")
                 if is_downloaded:
@@ -414,7 +418,7 @@ class MainWindow(QMainWindow, ):
 
                 artist_layout.addWidget(h_widget)
 
-                logging.debug(f"debug: Artist {artist_name} added to GUI: {label}")
+                logging.debug(f"Artist {artist_name} added to GUI: {label}")
 
         scroll_area = QScrollArea()
         scroll_area.setWidgetResizable(True)
@@ -429,12 +433,293 @@ class MainWindow(QMainWindow, ):
 
         self.artists_tab.setLayout(layout)
 
+    def create_logs_tab(self):
+
+        def get_logs():
+            logging.debug("Getting logs")
+            try:
+                return open("errors.log", "r").read()
+            except FileNotFoundError:
+                return "No log file found"
+
+        layout = QVBoxLayout()
+
+        logs_label = QLabel("Logs")
+        logs_label.setStyleSheet("font-size: 20pt;")
+
+        logs_desc = QLabel(
+            "Here you can take a look at what went wrong with which songs. "
+            "\nNote that this section only takes your liked songs in account, not your playlists")
+        logs_desc.setWordWrap(True)
+
+        logs_button = QPushButton("Load Logs")
+        logs_button.clicked.connect(lambda: logs_text.setText(get_logs()))
+
+        logs_text = QTextEdit("")
+        logs_text.setReadOnly(True)
+
+        layout.addWidget(logs_label)
+        layout.addWidget(logs_desc)
+        layout.addWidget(logs_button)
+        layout.addWidget(logs_text)
+
+        self.logs_tab.setLayout(layout)
+
+    def create_settings_tab(self):
+        layout = QVBoxLayout()
+
+        settings_label = QLabel("Settings")
+        settings_label.setStyleSheet("font-size: 20pt;")
+
+        # Spotify API Credentials - READ ONLY
+        label_spotify_credentials = QLabel("Spotify Credentials - These are your API Credentials you got from Spotify")
+        label_spotify_credentials.setStyleSheet("font-size: 12pt;")
+
+        label1 = QLabel("Client ID")
+
+        spotify_client_id = read_create_config().get('spotipy', 'client_id')
+        spotify_client_id_box = QLineEdit(spotify_client_id)
+        spotify_client_id_box.setReadOnly(True)
+
+        label2 = QLabel("Client Secret")
+
+        spotify_client_secret_box = QLineEdit(read_create_config().get('spotipy', 'client_secret'))
+        spotify_client_secret_box.setEchoMode(QLineEdit.Password)
+        spotify_client_secret_box.setReadOnly(True)
+
+        client_secret_show = QPushButton("Show Secret")
+        client_secret_show.clicked.connect(lambda: spotify_client_secret_box.setEchoMode(QLineEdit.Normal))
+
+        client_secret_hide = QPushButton("Hide Secret")
+        client_secret_hide.clicked.connect(lambda: spotify_client_secret_box.setEchoMode(QLineEdit.Password))
+
+        hlayout = QHBoxLayout()
+        hlayout.addWidget(client_secret_show)
+        hlayout.addWidget(client_secret_hide)
+
+        h_widget = QWidget()
+        h_widget.setLayout(hlayout)
+
+        layout_spotify_credentials = QVBoxLayout()
+
+        layout_spotify_credentials.addWidget(label1)
+        layout_spotify_credentials.addWidget(spotify_client_id_box)
+        layout_spotify_credentials.addWidget(label2)
+        layout_spotify_credentials.addWidget(spotify_client_secret_box)
+        layout_spotify_credentials.addWidget(h_widget)
+
+        widget_spotify_credentials = QWidget()
+        widget_spotify_credentials.setLayout(layout_spotify_credentials)
+
+        # Update Interval
+        layout_schedule_time = QVBoxLayout()
+        label_schedule_time = QLabel("Update Interval - Time between two Synchronizations in minutes")
+
+        save_action = lambda: self.schedule_time_save(schedule_time_box.text(), 'settings', 'schedule_time')
+
+        schedule_time = read_create_config().getint('settings', 'schedule_time')
+        schedule_time_box = QLineEdit(str(schedule_time))
+        schedule_time_box.returnPressed.connect(save_action)
+        schedule_time_box.setStyleSheet("width: padding-left: 100px;;")
+
+        schedule_time_save = QPushButton("Save")
+        schedule_time_save.clicked.connect(save_action)
+
+        layout_schedule_time.addWidget(label_schedule_time)
+        layout_schedule_time.addWidget(schedule_time_box)
+        layout_schedule_time.addWidget(schedule_time_save)
+        widget_schedule_time = QWidget()
+        widget_schedule_time.setLayout(layout_schedule_time)
+
+        # Style
+        def get_styles():
+            styles = []
+            for file in os.listdir(os.path.join("spotisync", "assets", "styles")):
+                if file.endswith(".qss"):
+                    styles.append(file[:-4])
+            return styles
+
+        def set_style(style):
+            filename = f"{style}.qss"
+            config = read_create_config()
+            config.set('settings', 'style', filename)
+            with open(CONFIG_FILE, 'w') as configfile:
+                config.write(configfile)
+            style_path = open(os.path.join("assets", "styles", filename)).read()
+            self.setStyleSheet(style_path)
+
+        layout_style = QVBoxLayout()
+        label_style = QLabel("Style - The style of the GUI")
+
+        style = read_create_config().get('settings', 'style')
+        style = style.split(".")[0]
+        style_box = QComboBox()
+        style_box.addItems(get_styles())
+        style_box.setCurrentText(style)
+        style_box.currentTextChanged.connect(lambda: set_style(style_box.currentText()))
+
+        layout_style.addWidget(label_style)
+        layout_style.addWidget(style_box)
+        widget_style = QWidget()
+        widget_style.setLayout(layout_style)
+
+        # Download Path
+        layout_download_path = QVBoxLayout()
+        label_download_path = QLabel("Download Path - Root Path of where the songs will be downloaded.")
+
+        download_path = read_create_config().get('settings', 'download_path')
+        download_path_box = QLineEdit(download_path)
+        download_path_box.returnPressed.connect(
+            lambda: self.dw_path_save(download_path_box.text(), 'settings', 'download_path'))
+
+        download_path_save = QPushButton("Save")
+        download_path_save.clicked.connect(
+            lambda: self.dw_path_save(download_path_box.text(), 'settings', 'download_path'))
+
+        layout_download_path.addWidget(label_download_path)
+        layout_download_path.addWidget(download_path_box)
+        layout_download_path.addWidget(download_path_save)
+        widget_download_path = QWidget()
+        widget_download_path.setLayout(layout_download_path)
+
+        # Debug Mode
+        layout_debug = QHBoxLayout()
+        label_debug = QLabel("Debug Mode")
+
+        switch_debug = PyQtSwitch()
+        switch_debug.setChecked(read_create_config().getboolean('settings', 'debug'))
+        switch_debug.setAnimation(True)
+        switch_debug.setStyleSheet(
+            "background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
+        switch_debug.toggled.connect(lambda checked: self.any_toggle(checked, 'settings', 'debug'))
+
+        layout_debug.addWidget(label_debug)
+        layout_debug.addWidget(switch_debug)
+
+        widget_debug = QWidget()
+        widget_debug.setLayout(layout_debug)
+
+        # Startup with GUI
+        layout_startup = QHBoxLayout()
+        label_startup = QLabel("Startup with GUI")
+
+        switch_startup = PyQtSwitch()
+        switch_startup.setChecked(read_create_config().getboolean('settings', 'startup_with_gui'))
+        switch_startup.setAnimation(True)
+        switch_startup.setStyleSheet(
+            "background-color: #202020; color: #fffcf6; border: 1px solid black; border-radius: 5px;")
+        switch_startup.toggled.connect(lambda checked: self.any_toggle(checked, 'settings', 'startup_with_gui'))
+
+        layout_startup.addWidget(label_startup)
+        layout_startup.addWidget(switch_startup)
+
+        widget_startup = QWidget()
+        widget_startup.setLayout(layout_startup)
+
+        # Quit to tray
+        quit_to_tray_button = QPushButton("Quit to Tray")
+        quit_to_tray_button.clicked.connect(lambda: print("balls")) # self.hide() TODO: use self.hide() but with variable so that it does not stop at startup
+                                                                                # TODO: (lambda connect codes run at startup idk why)
+
+        quit_program = QPushButton("Quit")
+        quit_program.clicked.connect(lambda: print("hi")) # TODO: implement actual shutdown function (lambda connect codes run at startup idk why)
+
+        layout.addWidget(settings_label)
+        layout.addWidget(widget_schedule_time)
+        layout.addWidget(widget_download_path)
+        layout.addWidget(widget_style)
+        layout.addWidget(widget_debug)
+        layout.addWidget(widget_startup)
+        layout.addWidget(label_spotify_credentials)
+        layout.addWidget(widget_spotify_credentials)
+        layout.addWidget(quit_to_tray_button)
+        layout.addWidget(quit_program)
+
+        self.settings_tab.setLayout(layout)
+
+    def any_toggle(self, checked, section, option):
+        config = read_create_config()
+        config.set(section, option, str(checked))
+        logging.debug(f"{section}: {option} set to {checked}")
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+
+    def dw_path_save(self, path, section, option):
+        userinput = self.show_error_message("question",
+                                            f"Your files will be copied to the new download path: {path}\n"
+                                            f"This will take some time and the files will NOT be verified.\n"
+                                            f"You can also change this manually in your config.ini.\n\n"
+                                            f"Are you sure you want to continue?")
+
+        if userinput:
+
+            if not path.endswith('/'):
+                path += '/'
+
+            try:
+                if path != self.PATH:
+                    shutil.copytree(self.PATH, path, dirs_exist_ok=True)
+
+                config = read_create_config()
+                config.read(CONFIG_FILE)
+                config.set(section, option, path)
+
+                with open(CONFIG_FILE, 'w') as configfile:
+                    config.write(configfile)
+
+                logging.debug(f"{section}: {option} set to {path}")
+
+                try:
+                    send2trash(path)
+                except Exception as e:
+                    self.show_error_message("critical", f"Error trashing old download path: {str(e)}\n\nnot deleting.")
+                    self.show_error_message("information",
+                                            "Download path saved successfully! Please restart SpotiSync.")
+
+                    self.cleanup() # TODO: make actually stop the programm
+
+            except Exception as e:
+                self.show_error_message("critical", "Error copying files...")
+                logging.error(e)
+
+        else:
+            self.show_error_message("information", "Cancelled")
+
+    def schedule_time_save(self, time, section, option):
+        """
+        Saves the schedule time to the configuration file.
+
+        Args:
+            time (str): The schedule time to save.
+            section (str): The configuration section.
+            option (str): The configuration option.
+
+        Raises:
+            ValueError: If the input time is not a positive integer.
+        """
+        try:
+            time = int(time)
+            if time <= 0:
+                raise ValueError("Schedule time must be a positive integer")
+        except ValueError:
+            self.show_error_message("critical", "Invalid schedule time. Please enter a positive integer.")
+            return
+
+        config = read_create_config()
+        config.set(section, option, str(time))
+        logging.debug(f"{section}: {option} set to {time}")
+        with open(CONFIG_FILE, 'w') as configfile:
+            config.write(configfile)
+
     def cleanup(self):
         """Cleanup resources"""
         logger.info("Cleaning up resources")
         logger.info("Saving Logs")
 
-        self.icon.stop()
+        try:
+            self.icon.stop()
+        except Exception as e:
+            logger.error("Failed stopping TrayManager: " + str(e))
 
         # Flush all handlers to ensure logs are written
         for handler in logger.handlers + logging.getLogger().handlers:
@@ -451,6 +736,22 @@ class MainWindow(QMainWindow, ):
         # Remove handlers after logging is done
         logger.handlers.clear()
         logging.getLogger().handlers.clear()
+
+        logging.debug("Deleting jsons'")
+
+        for file in os.listdir():
+            if file.endswith(".json"): #  and file != "song_data.json":
+                logging.debug(f"Removing {file}")
+                os.remove(file)
+
+        logging.debug("Exiting")
+
+        try:
+            os._exit(0)
+        except:
+            raise RuntimeError
+        finally:
+            exit(0)
 
 
 def main():

@@ -6,11 +6,11 @@ from PyQt5.QtWidgets import QWidget, QMessageBox, QInputDialog
 # Popup Dialog Boxes
 # Note to self: to test this delete the cache folder
 
-def show_error_message(type, error_message):
+def show_error_message(msg_type, error_message):
     """
     Displays a message box with the specified type and error message.
     Args:
-        type (str): The type of message box to display. Can be "critical", "information", or "question".
+        msg_type (str): The type of message box to display. Can be "critical", "information", or "question".
         error_message (str): The message to display in the message box.
 
     Returns:
@@ -21,15 +21,15 @@ def show_error_message(type, error_message):
         ValueError: If the specified type is not "critical", "information", or "question".
     """
 
-    if type == "critical":
+    if msg_type == "critical":
         QMessageBox.critical(QWidget(), "Error", error_message)
         return None
 
-    elif type == "information":
+    elif msg_type == "information":
         QMessageBox.information(QWidget(), "Info", error_message)
         return None
 
-    elif type == "question":
+    elif msg_type == "question":
         reply = QMessageBox.question(QWidget(), "Question", error_message, QMessageBox.Yes | QMessageBox.No)
         if reply == QMessageBox.Yes:
             return True
@@ -37,7 +37,7 @@ def show_error_message(type, error_message):
             return False
 
     else:
-        raise ValueError("Invalid message box type")
+        raise ValueError("Invalid message box msg_type")
 
 
 def enter_value_and_return(message):

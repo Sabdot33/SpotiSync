@@ -47,9 +47,17 @@ def fetch_user_lib():
         song_data.append({
             'name': track['name'],
             'url': track['external_urls']['spotify'],
-            'spoti_id': track['spoti_id']
+            'id': track['id']
         })
 
-    json.dump(song_data, open('song_data.json', 'w'), indent=4)
+    try:
+        with open('song_data.json', 'w') as f:
+            f.write(json.dumps(song_data, indent=4))
+    except (IOError, OSError) as e:
+        logging.error(f"An error occurred while writing to the file: {e}")
+    except TypeError as e:
+        logging.error(f"An error occurred: The playlist_data is not JSON serializable: {e}")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
 
     logging.debug("debug: Song data extracted and saved to song_data.json")

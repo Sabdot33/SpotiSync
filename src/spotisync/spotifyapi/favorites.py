@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from logging import Logger
 from time import localtime, strftime
 
 from ..core.config import read_create_config
@@ -8,13 +9,10 @@ from ..spotifyapi.download import download_and_save_mp3
 from ..spotifyapi.spotipy import fetch_user_lib
 
 
-def fetch_user_lib_and_save_all(debug=False):
+def fetch_user_lib_and_save_all():
     """
     Fetches the user's saved tracks from Spotify and saves the song data to a JSON file.
     Then, it downloads the audio files for each song and saves them to a specified path.
-
-    Args:
-        debug (bool, optional): If True, prints debug information. Defaults to False.
 
     Returns:
         bool: True if all songs were downloaded successfully, False otherwise.
@@ -25,7 +23,6 @@ def fetch_user_lib_and_save_all(debug=False):
     if not dw_path.endswith("/"):
         dw_path += "/"
     dw_path += "Favorites/"
-    config = None
 
     fetch_user_lib()
 
@@ -36,7 +33,7 @@ def fetch_user_lib_and_save_all(debug=False):
 
     for item in data:
         try:
-            download_and_save_mp3(item['spoti_id'], f"{item['name']}.mp3", path=dw_path, debug=debug)
+            download_and_save_mp3(item['id'], f"{item['name']}.mp3", path=dw_path)
         except Exception as e:
             if os.name == 'nt':
                 pass
@@ -63,12 +60,12 @@ def fetch_user_lib_and_save_all(debug=False):
             # ^First 4 lines of errors.log^
             for item in failed_items:
                 try:
-                    logging.debug(f"- {item}")
+                    logging.debug(f"- {item}") # TODO: Rewrite the deprecated logging and only log into the main logger (logging)
                     log.write(f"- {item}\n")
-                except Exception as e:
+                except UnicodeEncodeError as e:
                     log.write(
                         f"Cloud not log error; python raised an exception: {e}\nSee "
-                        f"https://github.com/ZSabiudj/SpotiSync/blob/main/README.md#bugs for more Information\n")
+                        f"https://github.com/Sabdot33/SpotiSync/blob/main/README.md#bugs for more Information\n")
             logging.debug("Logged errors to errors.log")
         else:
             print("All songs downloaded successfully! Enjoy :3")

@@ -18,22 +18,18 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
     url = f"https://yank.g3v.co.uk/track/{spoti_id}"
     hasfailed = False
 
-    # Format path properly, if not current directory
-    if path != ".":
-        if not path.endswith("/"):
-            path += "/"
-            logging.debug("debug: Added '/' to path: " + path)
-
     if not os.path.exists(path):
         os.makedirs(path)
 
     # Check if filename includes a question mark or slashes, if so replace
     filename = filename.replace("?", " huh")
     filename = filename.replace("/" or "//" or "\\" or "\\\\", "slash")
-    filename = filename.replace("/", "slash")
     filename = filename.replace("//", "slash")
-    filename = filename.replace("\\", "slash")
+    filename = filename.replace("/", "slash")
     filename = filename.replace("\\\\", "slash")
+    filename = filename.replace("\\", "slash")
+    filename = filename.replace("<", " ")
+    filename = filename.replace(">", " ")
 
     # Create the full path including filename and check if it already exists
     full_path: LiteralString | str = os.path.join(path, filename)
@@ -46,15 +42,15 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
 
     try:
         response = requests.get(url, stream=True)
-        response.raise_for_status()  # Raise an exception for non-200 status codes
+        response.raise_for_status()
     except requests.exceptions.RequestException as e:
         if skip:
             logging.debug(f"debug: Error downloading audio: {e}")
             hasfailed = True
         else:
             raise ValueError(f"Error downloading audio: {e}")
-    # Check content type before saving
-    if response.headers.get('content-type', '').lower() != 'audio/mpeg':
+    # Check content msg_type before saving
+    if response.headers.get('Content-Type', '').lower() != 'audio/mpeg':
         if skip:
             logging.debug("debug: Downloaded content is not an MP3 file.")
             hasfailed = True

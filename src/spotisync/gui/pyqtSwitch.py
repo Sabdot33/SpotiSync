@@ -1,4 +1,4 @@
-# CREDIT: yjg30737 on github.com: https://github.com/yjg30737/pyqt-switch
+# CREDIT: yjg30737 on gitHub.com: https://github.com/yjg30737/pyqt-switch
 
 from PyQt5.QtCore import Qt, pyqtSignal, QPropertyAnimation, QPoint, QAbstractAnimation, QParallelAnimationGroup
 

@@ -25,7 +25,7 @@ This project is not affiliated with Yank!
 
 SpotiSync liberates your Spotify library, enabling offline access, permanent backups, and personalized music management,
 so you can ditch the limitations and enjoy your tunes anytime, anywhere, exactly how you like and if you discover a new
-tune to add, just like it on Spotify and it will automatically be synchronized as long as this app is running.
+tune to add, just like it on Spotify, and it will automatically be synchronized as long as this app is running.
 
 I started this project because in my opinion Spotify has made some questionable business choices and as a response to
 that I wanted to break the chains in an interesting and as user-friendly as possible way.
