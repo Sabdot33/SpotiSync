@@ -71,7 +71,8 @@ class TrayManager:
             raise SystemExit
 
         # Load and verify image
-        icon_image = Image.open(os.path.join("spotisync", "assets", "sync_icon.png"))
+        package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        icon_image = Image.open(os.path.join(package_dir, "assets", "sync_icon.png"))
         icon_image.load()
 
         icon_image = icon_image.resize((32, 32), Image.Resampling.LANCZOS)
@@ -106,8 +107,9 @@ class MainWindow(QMainWindow, ):
         self.tab_widget = QTabWidget()
         self.setCentralWidget(self.tab_widget)
 
-        self.default_playlist_pixmap = QPixmap(os.path.join("spotisync", "assets", "playlist.png")).scaled(128, 128, Qt.KeepAspectRatio)
-        self.checkmark_pixmap = QPixmap(os.path.join("spotisync", "assets", "checkmark.png"))
+        package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.default_playlist_pixmap = QPixmap(os.path.join(package_dir, "assets", "playlist.png")).scaled(128, 128, Qt.KeepAspectRatio)
+        self.checkmark_pixmap = QPixmap(os.path.join(package_dir, "assets", "checkmark.png"))
 
         self.load_config()
         self.create_tabs()
@@ -534,7 +536,8 @@ class MainWindow(QMainWindow, ):
         # Style
         def get_styles():
             styles = []
-            for file in os.listdir(os.path.join("spotisync", "assets", "styles")):
+            package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            for file in os.listdir(os.path.join(package_dir, "assets", "styles")):
                 if file.endswith(".qss"):
                     styles.append(file[:-4])
             return styles

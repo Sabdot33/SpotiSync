@@ -4,22 +4,23 @@ import logging
 import os
 import zipfile
 from io import BytesIO
+import threading
 
 import requests
 from PIL import Image
 
 from .spotipy import login_spotify
 
+# Import logging configuration from core module
+from ..core.logger import setup_logging
+
+# Setup logging for this module
+logger = setup_logging(__name__)
 
 def fetch_playlists():
-    """
-    Fetches the user's saved playlists from Spotify and saves the playlist data to a JSON file.
-
-    Returns:
-        None
-    """
-
+    logging.info("Starting to fetch user playlists")
     sp = login_spotify()
+    logging.debug("Successfully logged in to Spotify")
 
     playlists = []
     results = sp.current_user_playlists(limit=50)
@@ -27,30 +28,38 @@ def fetch_playlists():
         playlists.extend(results['items'])
         if results['next']:
             results = sp.next(results)
+            logging.debug(f"Fetched next page of playlists, total count: {len(playlists)}")
         else:
             break
 
-    # Extract playlist names and URLs
+    logging.info(f"Found {len(playlists)} playlists")
     playlist_data = []
-    playlists = playlists  # [::-1]
 
-    if not os.path.exists(os.path.join("cache")):
-        os.makedirs(os.path.join("cache"))
+    cache_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "cache")
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir)
+        logging.debug(f"Created cache directory: {cache_dir}")
 
     for playlist in playlists:
         images = playlist['images']
+        playlist_name = playlist['name']
+        logging.debug(f"Processing playlist: {playlist_name}")
 
-        if images:# save image in cache folder
-            if os.path.exists(os.path.join("cache", playlist["id"] + ".jpg")):
-                logging.debug("Image already exists in cache")
-                pass
+        if images:
+            cache_path = os.path.join(cache_dir, playlist["id"] + ".jpg")
+            if os.path.exists(cache_path):
+                logging.debug(f"Image already exists in cache for playlist: {playlist_name}")
             else:
-                image_url = images[0]['url']
-                response = requests.get(image_url)
-                pi_limage = Image.open(BytesIO(response.content))
-                pi_limage = pi_limage.resize((128, 128))
-                pi_limage.save(os.path.join("cache", playlist["id"] + ".jpg"))
-                logging.debug("Image saved in cache")
+                try:
+                    image_url = images[0]['url']
+                    response = requests.get(image_url)
+                    response.raise_for_status()
+                    pi_limage = Image.open(BytesIO(response.content))
+                    pi_limage = pi_limage.resize((128, 128))
+                    pi_limage.save(cache_path)
+                    logging.debug(f"Saved image in cache for playlist: {playlist_name}")
+                except Exception as e:
+                    logging.error(f"Failed to save image for playlist {playlist_name}: {e}")
 
             playlist_data.append({
                 'name': playlist['name'],
@@ -67,8 +76,8 @@ def fetch_playlists():
             })
 
     try:
+        logging.debug("Saving playlist data to JSON file")
         w = io.StringIO()
-
         json.dump(playlist_data, w)
         content = w.getvalue()
 
@@ -76,6 +85,8 @@ def fetch_playlists():
             f.write(content)
 
         w.close()
+        logging.info("Successfully saved playlist data to JSON file")
+
     except (IOError, OSError) as e:
         logging.error(f"An error occurred while writing to the file: {e}")
     except TypeError as e:
@@ -83,89 +94,109 @@ def fetch_playlists():
     except Exception as e:
         logging.error(f"An unexpected error occurred: {e}")
 
-
 def download_playlist(playlist_id: str, path: str = "."):
-    # get playlist name with ID:
+    logging.info(f"Starting to download playlist: {playlist_id}")
+    
     def get_playlist_name(playlist_id_to_lookup):
         sp = login_spotify()
         return sp.playlist(str(playlist_id_to_lookup))['name']
 
-    playlist_name = get_playlist_name(playlist_id)
+    try:
+        playlist_name = get_playlist_name(playlist_id)
+        logging.debug(f"Retrieved playlist name: {playlist_name}")
+    except Exception as e:
+        logging.error(f"Failed to get playlist name: {e}")
+        raise
 
     path = os.path.join(path, "Playlists")
-
-    logging.debug(f"debug: path: {path} playlist_id: {playlist_id} playlist_name: {playlist_name}")
+    logging.debug(f"Download path set to: {path}")
 
     if not os.path.exists(path):
         os.makedirs(path)
+        logging.debug(f"Created download directory: {path}")
 
-    # Create the full path including filename and check if it already exists
     full_path = os.path.join(path, playlist_name)
     if os.path.exists(full_path):
-        logging.debug("playlist already exists: " + full_path)
+        logging.info(f"Playlist already exists at: {full_path}")
         logging.info("Updating playlist")
-    logging.debug("Downloading playlist to " + full_path)
 
     url = f"https://yank.g3v.co.uk/playlist/{playlist_id}"
-    hasfailed = False
+    timeout = 30
 
-    # download the playlist with requests and save the downloaded file to temp.zip
     try:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise an exception for non-200 status codes
-    except requests.exceptions.RequestException as e:
-        raise ValueError(f"Error downloading zip file: {e}")
-    if response.headers.get('Content-Type', '').lower == 'application/zip':
-        raise ValueError("Downloaded data is not a ZIP file")
+        logging.debug("Downloading playlist ZIP file")
+        response = requests.get(url, timeout=timeout)
+        response.raise_for_status()
 
-    # Save the file
-    with open("temp.zip", "wb") as f:
-        for chunk in response.iter_content(1024):
-            if chunk:  # filter out keep-alive new chunks
-                f.write(chunk)
+        if response.headers.get('Content-Type', '').lower() == 'application/zip':
+            logging.debug("Received valid ZIP file")
+        else:
+            raise ValueError("Downloaded content is not a ZIP file")
 
-    # unzip temp.zip to DW_PATH + playlist_name
-    if not hasfailed:
-        logging.debug("debug: Unzipping playlist")
+        with open("temp.zip", "wb") as f:
+            for chunk in response.iter_content(1024):
+                if chunk:
+                    f.write(chunk)
+        logging.debug("Successfully downloaded ZIP file")
+
+        logging.debug(f"Extracting playlist to: {full_path}")
         with zipfile.ZipFile("temp.zip", 'r') as zip_ref:
             zip_ref.extractall(full_path)
+        logging.info(f"Successfully extracted playlist to: {full_path}")
 
-    # remove temp.zip
-    logging.debug("debug: Removing temp.zip")
-    os.remove("temp.zip")
-    logging.debug("debug: Playlist downloaded to " + full_path)
+        os.remove("temp.zip")
+        logging.debug("Cleaned up temporary ZIP file")
 
+    except requests.exceptions.Timeout:
+        logging.error(f"Request timed out after {timeout} seconds")
+        raise
+    except requests.exceptions.RequestException as e:
+        logging.error(f"Failed to download playlist: {e}")
+        raise
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        raise
 
 def download_all_playlists(path):
-    """
-    Downloads all playlists from a JSON file containing playlist data.
-
-    Args:
-        path (str): The path where the playlists will be downloaded.
-
-    Returns:
-        None
-
-    Raises:
-        FileNotFoundError: If the playlist data file does not exist.
-        ValueError: If there is an error downloading a playlist.
-
-    This function reads playlist data from a JSON file named 'playlist_data.json' and downloads each playlist to the specified path.
-    If the specified path does not exist, it is created.
-    If there is an error downloading a playlist, an exception is raised and a message is printed.
-    """
+    logging.info(f"Starting to download all playlists to: {path}")
 
     if not os.path.exists(path):
         os.makedirs(path)
-        logging.debug("debug: Created download path " + path)
+        logging.debug(f"Created download path: {path}")
 
-    with open('playlist_data.json', 'r') as f:
-        playlist_data = json.load(f)
+    try:
+        with open('playlist_data.json', 'r') as f:
+            playlist_data = json.load(f)
+        logging.info(f"Found {len(playlist_data)} playlists to download")
+    except FileNotFoundError:
+        logging.error("playlist_data.json not found")
+        raise
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON in playlist_data.json: {e}")
+        raise
 
+    def download_playlist_thread(playlist_id, playlist_path):
+        try:
+            download_playlist(playlist_id, playlist_path)
+        except Exception as e:
+            logging.error(f"Error downloading playlist: {e}")
+    
+    threads = []
     for playlist in playlist_data:
         playlist_id = playlist['id']
         playlist_name = playlist['name']
-        try:
-            download_playlist(playlist_id, path + playlist_name + "/")
-        except Exception as e:
-            logging.error(f"Error downloading playlist {playlist_name}: {e}")
+        logging.debug(f"Creating download thread for playlist: {playlist_name}")
+        
+        thread = threading.Thread(
+            target=download_playlist_thread,
+            args=(playlist_id, path + playlist_name + "/"),
+            daemon=True
+        )
+        threads.append(thread)
+        thread.start()
+    
+    logging.debug("Waiting for all download threads to complete")
+    for thread in threads:
+        thread.join()
+    
+    logging.info("All playlists download completed")
