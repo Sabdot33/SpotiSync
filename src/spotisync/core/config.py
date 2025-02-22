@@ -7,43 +7,8 @@ import shutil
 from configparser import ConfigParser
 
 from .utils import show_error_message, enter_value_and_return
-from .yank import check_and_setup_yank
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "config.ini")
-YANK_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Yank_src")
-
-def run_yank_script(yank_script, yank_dir):
-    subprocess.run([sys.executable, yank_script], cwd=yank_dir)
-
-def start_yank_process():
-    """Start the Yank process in a separate process."""
-    try:
-        # Ensure Yank config exists
-        yank_config = os.path.join(YANK_DIR, "config.ini")
-        if not os.path.exists(yank_config):
-            try:
-                # Try creating a symlink first
-                if os.name == 'nt':  # Windows
-                    subprocess.run(['mklink', yank_config, CONFIG_FILE], shell=True, check=True)
-                else:  # Unix-like
-                    os.symlink(CONFIG_FILE, yank_config)
-            except (subprocess.CalledProcessError, OSError):
-                # If symlink fails, fall back to copying
-                shutil.copy2(CONFIG_FILE, yank_config)
-        
-        # Start Yank process
-        yank_script = os.path.join(YANK_DIR, "index.py")
-        process = multiprocessing.Process(
-            target=run_yank_script,
-            args=(yank_script, YANK_DIR)
-        )
-        process.daemon = True  # Set as daemon so it terminates with the main process
-        process.start()
-        return process
-    except Exception as e:
-        error_msg = f"Failed to start Yank process: {str(e)}"
-        show_error_message("critical", error_msg)
-        raise RuntimeError(error_msg)
 
 def check_for_blanks():
     """
@@ -100,13 +65,10 @@ def read_create_config() -> configparser.ConfigParser:
     """Reads or creates a configuration file.
     If the configuration file exists, this function attempts to read it. 
     If the file does not exist, it creates a new configuration file with default settings.
-    Also starts the Yank process if configuration is successful.
-
     Returns:
         ConfigParser: The configuration object.
     """
     check_for_blanks()
-    check_and_setup_yank()
 
     config = ConfigParser()
 
@@ -118,17 +80,12 @@ def read_create_config() -> configparser.ConfigParser:
                 download_path = config['settings']['download_path']
                 download_path = os.path.normpath(download_path)
                 config.set('settings', 'download_path', download_path)
-            
-            # Start Yank process after successful config read
-            start_yank_process()
             return config
         except Exception as e:
             print(f"Error reading config file: {e}")
-            show_error_message("critical", "An error occured while reading your config.ini file:\n\n" + str(e))
+            show_error_message("critical", "An error occurred while reading your config.ini file:\n\n" + str(e))
             raise e
     else:
-        config.add_section('deezerapi')
-        config.set('deezerapi', 'deezer_arl', enter_value_and_return("Enter your Deezer account ARL cookie"))
         config.add_section('spotifyapi')
         config.set('spotifyapi', 'client_id', enter_value_and_return("Enter your Spotify client ID"))
         config.set('spotifyapi', 'client_secret', enter_value_and_return("Enter your Spotify client secret"))
@@ -139,12 +96,9 @@ def read_create_config() -> configparser.ConfigParser:
         config.set('settings', 'download_path',
                    enter_value_and_return("Enter your download full path ending with a \\ backslash \\"))
         config.set('settings', 'schedule_time',
-                   enter_value_and_return("Enter the time in minutes betweem synchronizations"))
+                   enter_value_and_return("Enter the time in minutes between synchronizations"))
         config.set('settings', 'style', 'default')
 
         with open(CONFIG_FILE, 'w') as configfile:
             config.write(configfile)
-        
-        # Start Yank process after creating new config
-        start_yank_process()
         return config

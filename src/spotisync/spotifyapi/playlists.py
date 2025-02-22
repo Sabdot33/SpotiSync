@@ -120,32 +120,45 @@ def download_playlist(playlist_id: str, path: str = "."):
         logging.info(f"Playlist already exists at: {full_path}")
         logging.info("Updating playlist")
 
-    url = f"https://yank.g3v.co.uk/playlist/{playlist_id}"
-    timeout = 30
-
     try:
-        logging.debug("Downloading playlist ZIP file")
-        response = requests.get(url, timeout=timeout)
-        response.raise_for_status()
+        sp = login_spotify()
+        playlist = sp.playlist(playlist_id)
+        tracks = playlist['tracks']
+        track_items = tracks['items']
 
-        if response.headers.get('Content-Type', '').lower() == 'application/zip':
-            logging.debug("Received valid ZIP file")
-        else:
-            raise ValueError("Downloaded content is not a ZIP file")
+        while tracks['next']:
+            tracks = sp.next(tracks)
+            track_items.extend(tracks['items'])
 
-        with open("temp.zip", "wb") as f:
-            for chunk in response.iter_content(1024):
-                if chunk:
-                    f.write(chunk)
-        logging.debug("Successfully downloaded ZIP file")
+        logging.info(f"Found {len(track_items)} tracks in playlist")
 
-        logging.debug(f"Extracting playlist to: {full_path}")
-        with zipfile.ZipFile("temp.zip", 'r') as zip_ref:
-            zip_ref.extractall(full_path)
-        logging.info(f"Successfully extracted playlist to: {full_path}")
+        def download_track_thread(track_item, track_path):
+            try:
+                track = track_item['track']
+                track_name = track['name']
+                track_id = track['id']
+                logging.debug(f"Starting download for track: {track_name}")
+                download_and_save_mp3(track_id, f"{track_name}.mp3", track_path, skip=True)
+                logging.debug(f"Successfully downloaded: {track_name}")
+            except Exception as e:
+                logging.error(f"Error downloading track {track_name}: {e}")
 
-        os.remove("temp.zip")
-        logging.debug("Cleaned up temporary ZIP file")
+        threads = []
+        for track_item in track_items:
+            thread = threading.Thread(
+                target=download_track_thread,
+                args=(track_item, full_path),
+                daemon=True
+            )
+            threads.append(thread)
+            thread.start()
+
+        logging.debug("Waiting for all download threads to complete")
+        for thread in threads:
+            thread.join()
+
+        logging.info(f"Successfully downloaded playlist to: {full_path}")
+
 
     except requests.exceptions.Timeout:
         logging.error(f"Request timed out after {timeout} seconds")
