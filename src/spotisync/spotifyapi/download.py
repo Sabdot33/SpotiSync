@@ -19,7 +19,7 @@ def download_and_save_mp3(spoti_id, filename="audio.mp3", path: LiteralString | 
     logging.info(f"Starting download for track ID: {spoti_id}")
     logging.debug(f"Download parameters - filename: {filename}, path: {path}, skip: {skip}")
 
-    url = f"http://127.0.0.1:7000/track/{spoti_id}"
+    url = f"http://yank.g3v.co.uk/track/{spoti_id}"
     hasfailed = False
     timeout = 15  # Reduced timeout to 15 seconds for network operations
     response = None
